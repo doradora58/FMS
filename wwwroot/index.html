@@ -1,0 +1,95 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FMS - Fleet Management Dashboard</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 0 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+            font-size: 0.9em;
+        }
+
+        th {
+            background-color: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h1 style="margin: 0;">🚜 FMS Fleet & Job Monitor</h1>
+            <p style="margin: 5px 0 0 0; color: #666;">Managing AGV fleet operations and transport jobs.</p>
+        </div>
+        <span id="appVersion" style="font-size: 0.85em; color: #666; background: #f1f3f5; padding: 6px 12px; border-radius: 4px; border: 1px solid #dee2e6;">
+            Version: Loading...
+        </span>
+    </div>
+
+    <h2>📋 Active Job Queue</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Job ID</th>
+                <th>Source Order ID</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Status</th>
+                <th>Created At</th>
+            </tr>
+        </thead>
+        <tbody id="jobList"></tbody>
+    </table>
+
+    <script>
+        async function fetchVersion() {
+            try {
+                const res = await fetch('/api/version');
+                const data = await res.json();
+                document.getElementById('appVersion').textContent = `Version: ${data.version}`;
+            } catch (err) {
+                console.error("Failed to fetch version:", err);
+                document.getElementById('appVersion').textContent = "Version: unknown";
+            }
+        }
+
+        async function fetchJobs() {
+            try {
+                const res = await fetch('/api/jobs');
+                const jobs = await res.json();
+                const tbody = document.getElementById('jobList');
+                tbody.innerHTML = jobs.map(j => `
+                        <tr>
+                            <td><strong>${j.jobId}</strong></td>
+                            <td>${j.sourceOrderId}</td>
+                            <td>${j.fromAddress}</td>
+                            <td>${j.toAddress}</td>
+                            <td><strong>${j.status}</strong></td>
+                            <td>${new Date(j.createdAt).toLocaleString()}</td>
+                        </tr>
+                    `).reverse().join('');
+            } catch (err) {
+                console.error("Failed to fetch jobs:", err);
+            }
+        }
+
+        fetchVersion();
+        setInterval(fetchJobs, 3000);
+        fetchJobs();
+    </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+## .NET Core / Visual Studio
+bin/
+obj/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/
+
+## OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+## Environment variables & Local settings
+appsettings.Development.json
+.env
+
+## Docker / Temporary files
+docker-compose.override.yml
+*.log
