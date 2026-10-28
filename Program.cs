@@ -1,10 +1,27 @@
 using FMS.Repositories;
 using FMS.Services;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Add OpenTelemetry
+const string serviceName = "FmsService";
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService(serviceName))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter(opts =>
+        {
+            opts.Endpoint = new Uri(Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? "http://localhost:4317");
+        }))
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddRuntimeInstrumentation());
 
+// Add services to the container.
 builder.Services.AddControllers();
 
 builder.Services.AddSingleton<IJobRepository,JobRepository>();
