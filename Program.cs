@@ -7,7 +7,7 @@ using OpenTelemetry.Trace;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add OpenTelemetry
-const string serviceName = "FmsService";
+const string serviceName = "FMS";
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService(serviceName))
     .WithTracing(tracing => tracing
