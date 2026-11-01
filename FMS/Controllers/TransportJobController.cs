@@ -1,5 +1,5 @@
-﻿using FMS.Models;
-using FMS.Services;
+﻿using FMS.Core.Models;
+using FMS.Core.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FMS.Controllers;

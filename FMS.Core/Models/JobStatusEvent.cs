@@ -1,4 +1,4 @@
-﻿namespace FMS.Models;
+﻿namespace FMS.Core.Models;
 public record JobStatusEvent(
     string JobId,
     string OrderId,

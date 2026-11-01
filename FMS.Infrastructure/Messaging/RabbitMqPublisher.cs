@@ -1,10 +1,13 @@
-﻿using FMS.Models;
+﻿using FMS.Core.Models;
+using FMS.Core.Repositories;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 
-namespace FMS.Services;
+namespace FMS.Infrastructure.Messaging;
 
 public class RabbitMqPublisher(IConfiguration configuration, ILogger<RabbitMqPublisher> logger) : IMessagePublisher
 {
@@ -57,5 +60,6 @@ public class RabbitMqPublisher(IConfiguration configuration, ILogger<RabbitMqPub
 
         logger.LogInformation("Published JobStatusEvent for JobId: {JobId}, Status: {Status}", jobEvent.JobId, jobEvent.Status);
     }
+
 }
 

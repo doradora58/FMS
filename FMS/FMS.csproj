@@ -7,6 +7,9 @@
     <UserSecretsId>ffb9e693-c1b8-43de-8ba9-860477eecfdd</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>.</DockerfileContext>
+	<GenerateAssemblyVersionAttribute>true</GenerateAssemblyVersionAttribute>
+	<GenerateAssemblyFileVersionAttribute>true</GenerateAssemblyFileVersionAttribute>
+	<GenerateAssemblyInformationalVersionAttribute>true</GenerateAssemblyInformationalVersionAttribute>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,8 +20,12 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.20.1" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.20.1" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.20.1" />
-    <PackageReference Include="RabbitMQ.Client" Version="7.2.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FMS.Core\FMS.Core.csproj" />
+    <ProjectReference Include="..\FMS.Infrastructure\FMS.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

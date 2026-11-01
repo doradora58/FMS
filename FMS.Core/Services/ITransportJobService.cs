@@ -1,6 +1,8 @@
-﻿using FMS.Models;
+﻿using FMS.Core.Models;
+using FMS.Core.Repositories;
 
-namespace FMS.Services;
+
+namespace FMS.Core.Services;
 public interface ITransportJobService
 {
     Task<Job> CreateTransportJobAsync(TransportJobRequest req);

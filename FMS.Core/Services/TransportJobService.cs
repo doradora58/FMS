@@ -1,9 +1,9 @@
-﻿using FMS.Models;
-using FMS.Repositories;
+﻿using FMS.Core.Models;
+using FMS.Core.Repositories;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.Net;
 
-namespace FMS.Services;
+namespace FMS.Core.Services;
 public class TransportJobService(ITransportJobRepository jobRepository,IMessagePublisher publisher) : ITransportJobService
 {
     public async Task<Job> CreateTransportJobAsync(TransportJobRequest req)

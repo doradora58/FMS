@@ -1,10 +1,17 @@
-﻿using FMS.Models;
-using static System.Reflection.Metadata.BlobBuilder;
+﻿using FMS.Core.Models;
+using FMS.Core.Repositories;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace FMS.Repositories;
-public class TransportJobRepository : ITransportJobRepository
+namespace FMS.Infrastructure.Mocks;
+
+public class MockTransportJobRepository : ITransportJobRepository
 {
     private readonly List<Job> _jobs = [];
+
     public Task AddAsync(Job job)
     {
         _jobs.Add(job);

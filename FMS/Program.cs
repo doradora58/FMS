@@ -1,5 +1,7 @@
-using FMS.Repositories;
-using FMS.Services;
+using FMS.Core.Repositories;
+using FMS.Core.Services;
+using FMS.Infrastructure.Messaging;
+using FMS.Infrastructure.Mocks;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -24,14 +26,33 @@ builder.Services.AddOpenTelemetry()
         .AddPrometheusExporter());
 
 // Add services to the container.
-builder.Services.AddScoped<ITransportJobRepository, TransportJobRepository>();
+
 builder.Services.AddScoped<ITransportJobService, TransportJobService>();
-builder.Services.AddSingleton<IMessagePublisher, RabbitMqPublisher>();
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddSingleton<ITransportJobRepository, MockTransportJobRepository>();
+    builder.Services.AddSingleton<IMessagePublisher, MockMessagePublisher>();
+
+    Console.WriteLine("----------------------------------------");
+    Console.WriteLine("[Mode] Running with MOCK implementations");
+    Console.WriteLine("----------------------------------------");
+}
+else
+{
+    builder.Services.AddScoped<ITransportJobRepository, TransportJobRepository>();
+    builder.Services.AddSingleton<IMessagePublisher, RabbitMqPublisher>();
+
+    Console.WriteLine("----------------------------------------");
+    Console.WriteLine("[Mode] Running with REAL infrastructure");
+    Console.WriteLine("----------------------------------------");
+}
+
+
+
 
 builder.Services.AddControllers();
 
 builder.Services.AddSingleton<ITransportJobRepository,TransportJobRepository>();
-builder.Services.AddScoped<ITransportJobService, TransportJobService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
