@@ -8,9 +8,10 @@ namespace FMS.Services;
 
 public class RabbitMqPublisher(IConfiguration configuration, ILogger<RabbitMqPublisher> logger) : IMessagePublisher
 {
+    private static readonly ActivitySource _activitySource = new("Fms.Api.Messaging");
     public async Task PublishJobStatusAsync(JobStatusEvent jobEvent)
     {
-        using var activity = ActivitySource.StartActivity("RabbitMQ.Publish", ActivityKind.Producer);
+        using var activity = _activitySource.StartActivity("RabbitMQ.Publish", ActivityKind.Producer);
         activity?.SetTag("messaging.system", "rabbitmq");
         activity?.SetTag("messaging.destination.name", "job-status-queue");
         activity?.SetTag("messaging.rabbit.destination.routing_key", "job-status-queue");
