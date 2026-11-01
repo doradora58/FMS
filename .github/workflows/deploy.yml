@@ -54,11 +54,18 @@ jobs:
           -targetdir:"coveragereport" \
           -reporttypes:HtmlInline
 
+    - name: Prepare Clean Pages Directory
+      run: |
+        mkdir -p pages-dir
+        find coveragereport -name "*.htm*" -type f -exec cp {} pages-dir/index.html \;
+        echo "=== Verified files in pages-dir ==="
+        ls -la pages-dir/
+
     - name: Upload HTML Report Artifact
       uses: actions/upload-artifact@v4
       with:
         name: github-pages
-        path: coveragereport/
+        path: pages-dir/
 
     - name: Add Report Link to Summary
       run: |
