@@ -3,7 +3,6 @@ using FMS.Services;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using OpenTelemetry.Instrumentation.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
 
