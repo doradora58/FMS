@@ -1,5 +1,6 @@
 using FMS.Core.Repositories;
 using FMS.Core.Services;
+using FMS.Infrastructure.Database;
 using FMS.Infrastructure.Messaging;
 using FMS.Infrastructure.Mocks;
 using OpenTelemetry.Metrics;
@@ -16,6 +17,7 @@ builder.Services.AddOpenTelemetry()
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddSource("Fms.Api.Messaging")
+        .AddSource("MongoDB.Driver.Core.Extensions.DiagnosticSources")
         .AddOtlpExporter(opts =>
         {
             opts.Endpoint = new Uri(Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? "http://localhost:4317");
@@ -28,6 +30,7 @@ builder.Services.AddOpenTelemetry()
 // Add services to the container.
 
 builder.Services.AddScoped<ITransportJobService, TransportJobService>();
+
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddSingleton<ITransportJobRepository, MockTransportJobRepository>();
@@ -39,7 +42,7 @@ if (builder.Environment.IsDevelopment())
 }
 else
 {
-    builder.Services.AddScoped<ITransportJobRepository, TransportJobRepository>();
+    builder.Services.AddScoped<ITransportJobRepository, MongoTransportJobRepository>();
     builder.Services.AddSingleton<IMessagePublisher, RabbitMqPublisher>();
 
     Console.WriteLine("----------------------------------------");
@@ -51,8 +54,6 @@ else
 
 
 builder.Services.AddControllers();
-
-builder.Services.AddSingleton<ITransportJobRepository,TransportJobRepository>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
