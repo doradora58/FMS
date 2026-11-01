@@ -28,6 +28,7 @@ jobs:
 
     - name: Build Solution
       run: dotnet build FMS.sln --no-restore --configuration Release
+      
 
     - name: Run Tests & Collect Coverage
       run: |
@@ -50,6 +51,7 @@ jobs:
         badge: true
         fail_below_min: false
         format: markdown
+        hide_branch_rate: false
         hide_complexity: true
         indicators: true
         output: both
