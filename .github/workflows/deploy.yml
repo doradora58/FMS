@@ -54,39 +54,16 @@ jobs:
           -targetdir:"coveragereport" \
           -reporttypes:HtmlInline
 
-    - name: Prepare Clean Pages Directory
-      run: |
-        mkdir -p pages-dir
-        find coveragereport -name "*.htm*" -type f -exec cp {} pages-dir/index.html \;
-        echo "=== Verified files in pages-dir ==="
-        ls -la pages-dir/
-
     - name: Upload HTML Report Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: github-pages
-        path: pages-dir/
+        name: html-coverage-report
+        path: coveragereport/
 
-    - name: Add Report Link to Summary
+    - name: Add Report Summary
       run: |
-        echo "### 📊 Code Coverage HTML Report" >> $GITHUB_STEP_SUMMARY
-        echo "👉 [View Latest Coverage Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)" >> $GITHUB_STEP_SUMMARY
-
-  deploy-pages:
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-      contents: read
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        echo "### 📊 Code Coverage HTML Report Generated" >> $GITHUB_STEP_SUMMARY
+        echo "HTML report is available in the workflow artifacts." >> $GITHUB_STEP_SUMMARY
 
   call-shared-deploy:
     needs: test
