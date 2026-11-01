@@ -46,7 +46,7 @@ jobs:
     - name: Generate Coverage Summary
       if: always()
       run: |
-      python3 - << 'EOF'
+        python3 - << 'EOF'
         import xml.etree.ElementTree as ET
         import glob, os
 
