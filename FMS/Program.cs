@@ -8,6 +8,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using MongoDB.Driver.Core.Extensions.DiagnosticSources;
+using FMS.Infrastructure.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,25 +36,18 @@ builder.Services.AddScoped<ITransportJobService, TransportJobService>();
 
 if (builder.Environment.IsDevelopment())
 {
-    builder.Services.AddSingleton<ITransportJobRepository, MockTransportJobRepository>();
-    builder.Services.AddSingleton<IMessagePublisher, MockMessagePublisher>();
-
+    builder.Services.AddInfrastructureMockServices();
     Console.WriteLine("----------------------------------------");
     Console.WriteLine("[Mode] Running with MOCK implementations");
     Console.WriteLine("----------------------------------------");
 }
 else
 {
-    builder.Services.AddScoped<ITransportJobRepository, MongoTransportJobRepository>();
-    builder.Services.AddSingleton<IMessagePublisher, RabbitMqPublisher>();
-
+    builder.Services.AddInfrastructureServices();
     Console.WriteLine("----------------------------------------");
     Console.WriteLine("[Mode] Running with REAL infrastructure");
     Console.WriteLine("----------------------------------------");
 }
-
-
-
 
 builder.Services.AddControllers();
 
