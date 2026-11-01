@@ -28,7 +28,7 @@ jobs:
 
     - name: Build Solution
       run: dotnet build FMS.sln --no-restore --configuration Release
-      
+
     - name: Run Tests & Collect Coverage
       run: |
         dotnet test FMS.sln \
@@ -42,24 +42,17 @@ jobs:
       if: always()
       with:
         files: '**/test-results.trx'
-    
+
     - name: Install ReportGenerator
       run: dotnet tool install -g dotnet-reportgenerator-globaltool
 
     - name: Generate HTML Coverage Report
       run: |
+        mkdir -p coveragereport
         reportgenerator \
           -reports:"**/coverage.cobertura.xml" \
           -targetdir:"coveragereport" \
           -reporttypes:HtmlInline
-
-    - name: Remove Symlinks from Report
-      run: |
-        find coveragereport -type l | while read link; do
-          target=$(readlink "$link")
-          rm "$link"
-          cp -r "$target" "$link"
-        done
 
     - name: Upload HTML Report Artifact
       uses: actions/upload-artifact@v4
@@ -69,8 +62,8 @@ jobs:
 
     - name: Add Report Link to Summary
       run: |
-        echo "### Code Coverage HTML Report" >> $GITHUB_STEP_SUMMARY
-        echo "[View Latest Coverage Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Code Coverage HTML Report" >> $GITHUB_STEP_SUMMARY
+        echo "👉 [View Latest Coverage Report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)" >> $GITHUB_STEP_SUMMARY
 
   deploy-pages:
     needs: test
