@@ -15,14 +15,25 @@ public class JobDocument
     [BsonRepresentation(BsonType.ObjectId)]
     public string? Id { get; set; }
 
-    public string JobId { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty;
+    public string JobId { get; set; } = null!;
+    public string SourceOrderId { get; set; } = null!;
+    public string FromAddress { get; set; } = null!;
+    public string ToAddress { get; set; } = null!;
+    public string Status { get; set; } = "QUEUED";
+    public string? AssignedAgvId { get; set; }
+    public DateTime CreatedAt { get; set; }
+
     public static JobDocument FromDomain(Job job)
     {
         return new JobDocument
         {
             JobId = job.JobId,
-            Status = job.Status
+            SourceOrderId = job.SourceOrderId,
+            FromAddress = job.FromAddress,
+            ToAddress = job.ToAddress,
+            Status = job.Status,
+            AssignedAgvId = job.AssignedAgvId,
+            CreatedAt = job.CreatedAt
         };
     }
 
@@ -31,7 +42,12 @@ public class JobDocument
         return new Job
         {
             JobId = this.JobId,
-            Status = this.Status
+            SourceOrderId = this.SourceOrderId,
+            FromAddress = this.FromAddress,
+            ToAddress = this.ToAddress,
+            Status = this.Status,
+            AssignedAgvId = this.AssignedAgvId,
+            CreatedAt = this.CreatedAt
         };
     }
 }
