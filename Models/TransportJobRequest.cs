@@ -1,6 +1,6 @@
 ﻿namespace FMS.Models
 {
-    public class DispatchRequest
+    public class TransportJobRequest
     {
         public string OrderId { get; set; } = null!;
         public string FromAddress { get; set; } = null!;

@@ -2,9 +2,9 @@
 using FMS.Repositories;
 
 namespace FMS.Services;
-public class JobService(IJobRepository jobRepository) : IJobService
+public class TransportJobService(ITransportJobRepository jobRepository) : ITransportJobService
 {
-    public async Task<Job> CreateJobFromDispatchAsync(DispatchRequest req)
+    public async Task<Job> CreateTransportJobAsync(TransportJobRequest req)
     {
         var job = new Job
         {
@@ -20,9 +20,14 @@ public class JobService(IJobRepository jobRepository) : IJobService
         return job;
     }
 
-    public async Task<IEnumerable<Job>> GetJobsAsync()
+    public async Task<IEnumerable<Job>> GetAllJobsAsync()
     {
         return await jobRepository.GetAllAsync();
+    }
+
+    public async Task<Job?> GetJobAsync(string jobId)
+    {
+        return await jobRepository.GetAsync(jobId);
     }
 }
 

@@ -25,8 +25,8 @@ builder.Services.AddOpenTelemetry()
 // Add services to the container.
 builder.Services.AddControllers();
 
-builder.Services.AddSingleton<IJobRepository,JobRepository>();
-builder.Services.AddScoped<IJobService, JobService>();
+builder.Services.AddSingleton<ITransportJobRepository,TransportJobRepository>();
+builder.Services.AddScoped<ITransportJobService, TransportJobService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
