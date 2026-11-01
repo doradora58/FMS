@@ -3,9 +3,11 @@ using FMS.Core.Services;
 using FMS.Infrastructure.Database;
 using FMS.Infrastructure.Messaging;
 using FMS.Infrastructure.Mocks;
+using MongoDB.Driver;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using MongoDB.Driver.Core.Extensions.DiagnosticSources;
 
 var builder = WebApplication.CreateBuilder(args);
 

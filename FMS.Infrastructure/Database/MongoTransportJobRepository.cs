@@ -3,6 +3,7 @@ using FMS.Core.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
+using MongoDB.Driver.Core.Extensions.DiagnosticSources;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,11 +15,20 @@ namespace FMS.Infrastructure.Database;
 public class MongoTransportJobRepository(IConfiguration configuration,ILogger<MongoTransportJobRepository> logger) : ITransportJobRepository
 {
 
-    private readonly IMongoCollection<JobDocument> _jobsCollection =
-            new MongoClient(configuration["MongoDB:ConnectionString"] ?? "mongodb://localhost:27017")
-                .GetDatabase(configuration["MongoDB:DatabaseName"] ?? "FmsDb")
-                .GetCollection<JobDocument>("Jobs");
+    private readonly IMongoCollection<JobDocument> _jobsCollection = CreateCollection(configuration);
+    private static IMongoCollection<JobDocument> CreateCollection(IConfiguration configuration)
+    {
+        var connectionString = configuration["MongoDB:ConnectionString"] ?? "mongodb://localhost:27017";
+        var databaseName = configuration["MongoDB:DatabaseName"] ?? "FmsDb";
 
+        var settings = MongoClientSettings.FromConnectionString(connectionString);
+
+        settings.ClusterConfigurator = cb => cb.Subscribe(new DiagnosticsActivityEventSubscriber());
+
+        var client = new MongoClient(settings);
+        var database = client.GetDatabase(databaseName);
+        return database.GetCollection<JobDocument>("Jobs");
+    }
     public async Task AddAsync(Job job)
     {
         var document = JobDocument.FromDomain(job);
