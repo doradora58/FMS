@@ -69,7 +69,7 @@
 
         async function fetchJobs() {
             try {
-                const res = await fetch('/api/jobs');
+                const res = await fetch('/api/transportjob');
                 const jobs = await res.json();
                 const tbody = document.getElementById('jobList');
                 tbody.innerHTML = jobs.map(j => `
