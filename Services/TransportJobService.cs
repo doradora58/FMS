@@ -1,8 +1,10 @@
 ﻿using FMS.Models;
 using FMS.Repositories;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using System.Net;
 
 namespace FMS.Services;
-public class TransportJobService(ITransportJobRepository jobRepository) : ITransportJobService
+public class TransportJobService(ITransportJobRepository jobRepository,IMessagePublisher publisher) : ITransportJobService
 {
     public async Task<Job> CreateTransportJobAsync(TransportJobRequest req)
     {
@@ -16,7 +18,11 @@ public class TransportJobService(ITransportJobRepository jobRepository) : ITrans
             CreatedAt = DateTime.UtcNow
         };
 
-        await jobRepository.AddAsync(job);
+        await jobRepository.AddAsync(job); 
+
+        var jobEvent = new JobStatusEvent(job.JobId, job.SourceOrderId, "Queued", DateTime.UtcNow);
+        await publisher.PublishJobStatusAsync(jobEvent);
+
         return job;
     }
 
