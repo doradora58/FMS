@@ -32,31 +32,13 @@ jobs:
           --collect:"XPlat Code Coverage" \
           --logger "trx;LogFileName=test-results.trx"
 
-    - name: Publish Test Results
-      uses: dorny/test-report@v3
-      if: always()
-      with:
-        name: .NET Test Results
-        path: '**/test-results.trx'
-        reporter: dotnet-trx
-
-    - name: Code Coverage Summary Report
-      uses: irongut/CodeCoverageSummary@v1.3.0
-      with:
-        filename: '**/coverage.cobertura.xml'
-        badge: true
-        fail_below_min: false
-        format: markdown
-        hide_branch_rate: false
-        hide_complexity: true
-        indicators: true
-        output: both
-
-    - name: Upload Coverage Artifacts
+    - name: Upload Test Results & Coverage Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: code-coverage-xml
-        path: '**/coverage.cobertura.xml'
+        name: test-and-coverage-reports
+        path: |
+          **/test-results.trx
+          **/coverage.cobertura.xml
 
   call-shared-deploy:
     needs: test
