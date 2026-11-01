@@ -46,7 +46,7 @@ jobs:
     - name: Generate Coverage Summary
       if: always()
       run: |
-        python3 - << 'EOF'
+      python3 - << 'EOF'
         import xml.etree.ElementTree as ET
         import glob, os
 
@@ -57,12 +57,12 @@ jobs:
             line_rate = float(root.attrib.get('line-rate', 0)) * 100
             branch_rate = float(root.attrib.get('branch-rate', 0)) * 100
 
-            summary_md = f"""### 📊 Code Coverage Summary
-| Metric | Coverage Rate |
-| :--- | :--- |
-| **Line Coverage** | **{line_rate:.2f}%** |
-| **Branch Coverage** | **{branch_rate:.2f}%** |
-"""
+            summary_md = "### 📊 Code Coverage Summary\n" \
+                       + "| Metric | Coverage Rate |\n" \
+                       + "| :--- | :--- |\n" \
+                       + f"| **Line Coverage** | **{line_rate:.2f}%** |\n" \
+                       + f"| **Branch Coverage** | **{branch_rate:.2f}%** |\n"
+
             with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
                 f.write(summary_md)
             print('Coverage summary successfully added to Step Summary.')
