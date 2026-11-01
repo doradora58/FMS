@@ -22,7 +22,7 @@ RUN dotnet restore "FMS/FMS.csproj"
 
 COPY . .
 WORKDIR "/src/FMS"
-RUN dotnet build "/FMS.csproj" -c $BUILD_CONFIGURATION -o /app/build /p:Version=$APP_VERSION
+RUN dotnet build "FMS.csproj" -c $BUILD_CONFIGURATION -o /app/build /p:Version=$APP_VERSION
 
 # This stage is used to publish the service project to be copied to the final stage
 FROM build AS publish
