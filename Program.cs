@@ -23,6 +23,10 @@ builder.Services.AddOpenTelemetry()
         .AddPrometheusExporter());
 
 // Add services to the container.
+builder.Services.AddScoped<ITransportJobRepository, TransportJobRepository>();
+builder.Services.AddScoped<ITransportJobService, TransportJobService>();
+builder.Services.AddSingleton<IMessagePublisher, RabbitMqPublisher>();
+
 builder.Services.AddControllers();
 
 builder.Services.AddSingleton<ITransportJobRepository,TransportJobRepository>();
