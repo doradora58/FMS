@@ -51,7 +51,7 @@ jobs:
         reportgenerator \
           -reports:"**/coverage.cobertura.xml" \
           -targetdir:"coveragereport" \
-          -reporttypes:Html
+          -reporttypes:HtmlInline
 
     - name: Remove Symlinks from Report
       run: |
