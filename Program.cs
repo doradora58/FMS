@@ -3,6 +3,7 @@ using FMS.Services;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using OpenTelemetry.Instrumentation.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,7 @@ builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
+        .AddSource("Fms.Api.Messaging")
         .AddOtlpExporter(opts =>
         {
             opts.Endpoint = new Uri(Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? "http://localhost:4317");
