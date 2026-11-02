@@ -19,6 +19,9 @@ public class JobDocument
     public string SourceOrderId { get; set; } = null!;
     public string FromAddress { get; set; } = null!;
     public string ToAddress { get; set; } = null!;
+    public double DistanceMeters { get; set; }
+    public int EstimatedDurationSeconds { get; set; }
+
     public string Status { get; set; } = "QUEUED";
     public string? AssignedAgvId { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -31,6 +34,8 @@ public class JobDocument
             SourceOrderId = job.SourceOrderId,
             FromAddress = job.FromAddress,
             ToAddress = job.ToAddress,
+            DistanceMeters = job.DistanceMeters,
+            EstimatedDurationSeconds = job.EstimatedDurationSeconds,
             Status = job.Status,
             AssignedAgvId = job.AssignedAgvId,
             CreatedAt = job.CreatedAt
@@ -45,6 +50,8 @@ public class JobDocument
             SourceOrderId = this.SourceOrderId,
             FromAddress = this.FromAddress,
             ToAddress = this.ToAddress,
+            DistanceMeters = this.DistanceMeters,
+            EstimatedDurationSeconds = this.EstimatedDurationSeconds,
             Status = this.Status,
             AssignedAgvId = this.AssignedAgvId,
             CreatedAt = this.CreatedAt

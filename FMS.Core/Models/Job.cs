@@ -8,4 +8,6 @@ public class Job
     public string Status { get; set; } = "QUEUED"; // QUEUED, ASSIGNED, RUNNING, COMPLETED
     public string? AssignedAgvId { get; set; }
     public DateTime CreatedAt { get; set; }
+    public double DistanceMeters { get; set; }
+    public int EstimatedDurationSeconds { get; set; }
 }

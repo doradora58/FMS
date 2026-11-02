@@ -1,61 +1,108 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FMS - Fleet Management Dashboard</title>
     <style>
         body {
-            font-family: sans-serif;
-            max-width: 900px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 1100px;
             margin: 30px auto;
-            padding: 0 15px;
+            padding: 0 20px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 15px;
         }
 
         th, td {
-            border: 1px solid #ddd;
-            padding: 10px;
+            border: 1px solid #e0e0e0;
+            padding: 10px 12px;
             text-align: left;
             font-size: 0.9em;
         }
 
         th {
-            background-color: #e9ecef;
+            background-color: #f5f5f5;
+            color: #333;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #fafafa;
         }
     </style>
 </head>
 <body>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div class="header-container">
         <div>
-            <h1 style="margin: 0;">🚜 FMS Fleet & Job Monitor</h1>
-            <p style="margin: 5px 0 0 0; color: #666;">Managing AGV fleet operations and transport jobs.</p>
+            <h1 style="margin: 0; font-size: 1.5em;">🚜 FMS Fleet & Job Monitor</h1>
+            <p style="margin: 5px 0 0 0; color: #666; font-size: 0.9em;">Managing AGV fleet operations and transport jobs.</p>
         </div>
-        <span id="appVersion" style="font-size: 0.85em; color: #666; background: #f1f3f5; padding: 6px 12px; border-radius: 4px; border: 1px solid #dee2e6;">
+        <span id="appVersion" style="font-size: 0.85em; color: #666; background: #eee; padding: 5px 10px; border-radius: 4px;">
             Version: Loading...
         </span>
     </div>
 
-    <h2>📋 Active Job Queue</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Job ID</th>
-                <th>Source Order ID</th>
-                <th>From</th>
-                <th>To</th>
-                <th>Status</th>
-                <th>Created At</th>
-            </tr>
-        </thead>
-        <tbody id="jobList"></tbody>
-    </table>
+    <div class="card">
+        <h2 style="margin-top: 0; font-size: 1.1em;">📋 Active Job Queue</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Job ID</th>
+                    <th>Source Order</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Distance</th>
+                    <th>Est. Duration</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody id="jobList"></tbody>
+        </table>
+    </div>
 
     <script>
+        function formatDistance(meters) {
+            if (!meters || meters <= 0) return '-';
+            if (meters >= 1000) {
+                return `${(meters / 1000).toFixed(1)} km`;
+            }
+            return `${Math.round(meters)} m`;
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds || seconds <= 0) return '-';
+            const mins = Math.floor(seconds / 60);
+            const hrs = Math.floor(mins / 60);
+            const remainingMins = mins % 60;
+
+            if (hrs > 0) {
+                return `${hrs}h ${remainingMins}m`;
+            }
+            return `${mins} min`;
+        }
+
         async function fetchVersion() {
             try {
                 const res = await fetch('/api/version');
@@ -72,13 +119,16 @@
                 const res = await fetch('/api/transportjob');
                 const jobs = await res.json();
                 const tbody = document.getElementById('jobList');
+
                 tbody.innerHTML = jobs.map(j => `
                         <tr>
                             <td><strong>${j.jobId}</strong></td>
                             <td>${j.sourceOrderId}</td>
                             <td>${j.fromAddress}</td>
                             <td>${j.toAddress}</td>
-                            <td><strong>${j.status}</strong></td>
+                            <td>${formatDistance(j.distanceMeters)}</td>
+                            <td>${formatDuration(j.estimatedDurationSeconds)}</td>
+                            <td>${j.status}</td>
                             <td>${new Date(j.createdAt).toLocaleString()}</td>
                         </tr>
                     `).reverse().join('');

@@ -1,19 +1,27 @@
 ﻿using FMS.Core.Models;
 using FMS.Core.Repositories;
+using FMS.Infrastructure.Factories;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.Net;
+using System.Threading;
 
 namespace FMS.Core.Services;
-public class TransportJobService(ITransportJobRepository jobRepository,IMessagePublisher publisher) : ITransportJobService
+public class TransportJobService(ITransportJobRepository jobRepository,IMessagePublisher publisher,IRoutingServiceFactory routingServiceFactory) : ITransportJobService
 {
-    public async Task<Job> CreateTransportJobAsync(TransportJobRequest req)
+    public async Task<Job> CreateTransportJobAsync(TransportJobRequest request, CancellationToken cancellationToken = default)
     {
+        var routingService = routingServiceFactory.Create();
+
+        var routeInfo = await routingService.GetRouteAsync(request.FromAddress, request.ToAddress, cancellationToken);
+
         var job = new Job
         {
             JobId = $"JOB-{Guid.NewGuid().ToString("N")[..6].ToUpper()}",
-            SourceOrderId = req.OrderId,
-            FromAddress = req.FromAddress,
-            ToAddress = req.ToAddress,
+            SourceOrderId = request.OrderId,
+            FromAddress = request.FromAddress,
+            ToAddress = request.ToAddress,
+            DistanceMeters = routeInfo.DistanceMeters,
+            EstimatedDurationSeconds = routeInfo.DurationSeconds,
             Status = "QUEUED",
             CreatedAt = DateTime.UtcNow
         };
