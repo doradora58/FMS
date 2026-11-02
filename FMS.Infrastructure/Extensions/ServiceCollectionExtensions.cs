@@ -45,10 +45,7 @@ public static class ServiceCollectionExtensions
         // MongoDB
         services.AddSingleton<ITransportJobRepository, MockTransportJobRepository>();
         // GoogleMap
-        //services.AddSingleton<IRoutingServiceFactory, MockRoutingServiceFactory>();
-
-        services.AddHttpClient<GoogleMapsRoutingService>();
-        services.AddSingleton<IRoutingServiceFactory, RoutingServiceFactory>();
+        services.AddSingleton<IRoutingServiceFactory, MockRoutingServiceFactory>();
 
 
         return services;
