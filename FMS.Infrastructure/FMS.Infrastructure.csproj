@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FMS.Core\FMS.Core.csproj" />
+    <ProjectReference Include="..\FMS.JobManagement\FMS.JobManagement.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

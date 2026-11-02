@@ -1,4 +1,5 @@
 ﻿using FMS.Core.Models;
+using FMS.JobManagement.Models;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace FMS.Infrastructure.Database;
 
-public class JobDocument
+public class JobDocument: IJob
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
@@ -26,7 +27,7 @@ public class JobDocument
     public string? AssignedAgvId { get; set; }
     public DateTime CreatedAt { get; set; }
 
-    public static JobDocument FromDomain(Job job)
+    public static JobDocument FromDomain(IJob job)
     {
         return new JobDocument
         {

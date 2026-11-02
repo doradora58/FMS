@@ -1,5 +1,6 @@
 ﻿using FMS.Core.Models;
 using FMS.Core.Repositories;
+using FMS.JobManagement.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
@@ -29,22 +30,30 @@ public class MongoTransportJobRepository(IConfiguration configuration,ILogger<Mo
         var database = client.GetDatabase(databaseName);
         return database.GetCollection<JobDocument>("Jobs");
     }
-    public async Task AddAsync(Job job)
+    public async Task AddAsync(IJob job)
     {
         var document = JobDocument.FromDomain(job);
         await _jobsCollection.InsertOneAsync(document);
         logger.LogInformation("[MongoDB] Job inserted: {JobId}", job.JobId);
     }
 
-    public async Task<IEnumerable<Job>> GetAllAsync()
+    public async Task<IEnumerable<IJob>> GetAllAsync()
     {
         var documents = await _jobsCollection.Find(_ => true).ToListAsync();
         return documents.Select(d => d.ToDomain());
     }
 
-    public async Task<Job?> GetAsync(string jobId)
+    public async Task<IJob?> GetAsync(string jobId)
     {
         var document = await _jobsCollection.Find(j => j.JobId == jobId).FirstOrDefaultAsync();
         return document?.ToDomain();
+    }
+
+    public async Task UpdateAsync(IJob job)
+    {
+        var filter = Builders<JobDocument>.Filter.Eq(d => d.JobId, job.JobId);
+        var document = JobDocument.FromDomain(job);
+
+        await _jobsCollection.ReplaceOneAsync(filter, document);
     }
 }

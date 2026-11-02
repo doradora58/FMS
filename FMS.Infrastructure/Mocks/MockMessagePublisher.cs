@@ -11,8 +11,9 @@ namespace FMS.Infrastructure.Mocks;
 
 public class MockMessagePublisher(ILogger<MockMessagePublisher> logger) : IMessagePublisher
 {
-    public async Task PublishJobStatusAsync(JobStatusEvent jobEvent)
+    public Task PublishJobStatusAsync(JobStatusEvent jobEvent)
     {
         logger.LogInformation("[MOCK] Message published (Simulation): {Message}", jobEvent);
+        return Task.CompletedTask;
     }
 }

@@ -1,5 +1,7 @@
-﻿namespace FMS.Core.Models;
-public class Job
+﻿using FMS.Core.Models;
+
+namespace FMS.JobManagement.Models;
+public class Job : IJob
 {
     public string JobId { get; set; } = null!;
     public string SourceOrderId { get; set; } = null!;

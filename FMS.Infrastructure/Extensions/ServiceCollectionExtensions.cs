@@ -1,4 +1,5 @@
 ﻿using FMS.Core.Repositories;
+using FMS.Core.Services;
 using FMS.Infrastructure.Database;
 using FMS.Infrastructure.External;
 using FMS.Infrastructure.Factories;
@@ -34,6 +35,7 @@ public static class ServiceCollectionExtensions
         // GoogleMap
         services.AddHttpClient<GoogleMapsRoutingService>();
         services.AddSingleton<IRoutingServiceFactory, RoutingServiceFactory>();
+        services.AddScoped<IRoutingService, GoogleMapsRoutingService>();
 
         return services;
     }
@@ -42,11 +44,13 @@ public static class ServiceCollectionExtensions
     {
         // RabbitMQ
         services.AddSingleton<IMessagePublisher, MockMessagePublisher>();
+        
         // MongoDB
         services.AddSingleton<ITransportJobRepository, MockTransportJobRepository>();
+
         // GoogleMap
         services.AddSingleton<IRoutingServiceFactory, MockRoutingServiceFactory>();
-
+        services.AddScoped<IRoutingService, MockRoutingService>();
 
         return services;
     }

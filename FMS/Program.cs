@@ -1,14 +1,17 @@
+﻿using FMS.Core.Models;
 using FMS.Core.Repositories;
 using FMS.Core.Services;
+using FMS.Facade;
 using FMS.Infrastructure.Database;
+using FMS.Infrastructure.Extensions;
 using FMS.Infrastructure.Messaging;
 using FMS.Infrastructure.Mocks;
+using FMS.JobManagement.Services;
 using MongoDB.Driver;
+using MongoDB.Driver.Core.Extensions.DiagnosticSources;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using MongoDB.Driver.Core.Extensions.DiagnosticSources;
-using FMS.Infrastructure.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,7 +35,9 @@ builder.Services.AddOpenTelemetry()
 
 // Add services to the container.
 
-builder.Services.AddScoped<ITransportJobService, TransportJobService>();
+builder.Services.AddScoped<IJobFactory, JobFactory>();
+builder.Services.AddScoped<IJobManagement, JobManagement>();
+builder.Services.AddScoped<ITransportJobFacade, TransportJobFacade>();
 
 if (builder.Environment.IsDevelopment())
 {

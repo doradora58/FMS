@@ -1,6 +1,7 @@
 ﻿using FMS.Controllers;
 using FMS.Core.Models;
-using FMS.Core.Services;
+using FMS.Facade;
+using FMS.JobManagement.Models;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 
@@ -12,8 +13,8 @@ public class TransportJobControllerTests
     public async Task GivenValidJobWhenCreateJobThenShouldReturnOkResultAsync()
     {
         // Arrange
-        var service = Substitute.For<ITransportJobService>();
-        var controller = new TransportJobController(service);
+        var facade = Substitute.For<ITransportJobFacade>();
+        var controller = new TransportJobController(facade);
 
         var request = new TransportJobRequest
         {
@@ -23,28 +24,28 @@ public class TransportJobControllerTests
         };
 
         var dummyJob = new Job { JobId = "JOB-API-01" };
-        service.CreateTransportJobAsync(request).Returns(Task.FromResult(dummyJob));
+        facade.CreateTransportJobAsync(request).Returns(Task.FromResult<IJob>(dummyJob)); // 👈 Task.FromResult<IJob> に修正
 
         // Act
         var result = await controller.Create(request);
 
         // Assert
-        await service.Received(1).CreateTransportJobAsync(request);
+        await facade.Received(1).CreateTransportJobAsync(request);
     }
 
     [Fact]
     public async Task GivenExistingJobsWhenGetAllThenShouldReturnOkWithJobsAsync()
     {
         // Arrange
-        var service = Substitute.For<ITransportJobService>();
-        var controller = new TransportJobController(service);
+        var facade = Substitute.For<ITransportJobFacade>();
+        var controller = new TransportJobController(facade);
 
         var dummyJobs = new List<Job>
         {
             new Job { JobId = "JOB-01" },
             new Job { JobId = "JOB-02" }
         };
-        service.GetAllJobsAsync().Returns(Task.FromResult<IEnumerable<Job>>(dummyJobs));
+        facade.GetAllJobsAsync().Returns(Task.FromResult<IEnumerable<IJob>>(dummyJobs));
 
         // Act
         var result = await controller.GetAll();
@@ -53,19 +54,19 @@ public class TransportJobControllerTests
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var returnedJobs = Assert.IsAssignableFrom<IEnumerable<Job>>(okResult.Value);
         Assert.Equal(2, returnedJobs.Count());
-        await service.Received(1).GetAllJobsAsync();
+        await facade.Received(1).GetAllJobsAsync();
     }
 
     [Fact]
     public async Task GivenExistingJobIdWhenGetByIdThenShouldReturnOkWithJobAsync()
     {
         // Arrange
-        var service = Substitute.For<ITransportJobService>();
-        var controller = new TransportJobController(service);
+        var facade = Substitute.For<ITransportJobFacade>();
+        var controller = new TransportJobController(facade);
 
         var jobId = "JOB-01";
         var dummyJob = new Job { JobId = jobId };
-        service.GetJobAsync(jobId).Returns(Task.FromResult<Job?>(dummyJob));
+        facade.GetJobAsync(jobId).Returns(Task.FromResult<IJob?>(dummyJob));
 
         // Act
         var result = await controller.GetById(jobId);
@@ -74,24 +75,24 @@ public class TransportJobControllerTests
         var okResult = Assert.IsType<OkObjectResult>(result);
         var returnedJob = Assert.IsType<Job>(okResult.Value);
         Assert.Equal(jobId, returnedJob.JobId);
-        await service.Received(1).GetJobAsync(jobId);
+        await facade.Received(1).GetJobAsync(jobId);
     }
 
     [Fact]
     public async Task GivenNonExistingJobIdWhenGetByIdThenShouldReturnNotFoundAsync()
     {
         // Arrange
-        var service = Substitute.For<ITransportJobService>();
-        var controller = new TransportJobController(service);
+        var facade = Substitute.For<ITransportJobFacade>();
+        var controller = new TransportJobController(facade);
 
         var jobId = "UNKNOWN-ID";
-        service.GetJobAsync(jobId).Returns(Task.FromResult<Job?>(null));
+        facade.GetJobAsync(jobId).Returns(Task.FromResult<IJob?>(null));
 
         // Act
         var result = await controller.GetById(jobId);
 
         // Assert
         Assert.IsType<NotFoundObjectResult>(result);
-        await service.Received(1).GetJobAsync(jobId);
+        await facade.Received(1).GetJobAsync(jobId);
     }
 }
