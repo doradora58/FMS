@@ -1,0 +1,144 @@
+@startuml FMS_Component_Architecture
+title FMS - Current Component Architecture
+left to right direction
+skinparam componentStyle rectangle
+
+actor "API Client" as Client
+
+package "FMS (ASP.NET Core)" {
+  component "TransportJobController\nREST API" as Controller
+  component "TransportJobFacade" as Facade
+  component "Program.cs\nDI / Middleware / Telemetry" as Host
+  interface "ITransportJobFacade" as IFacade
+}
+
+package "FMS.JobManagement" {
+  component "JobManagement" as JobManagement
+  component "JobFactory" as JobFactory
+  component "JobStateMachine" as StateMachine
+  interface "IJobManagement" as IJobManagement
+  interface "IJobFactory" as IJobFactory
+}
+
+package "FMS.Core (Contracts / Models)" {
+  interface "ITransportJobRepository" as IJobRepository
+  interface "IRoutingService" as IRouting
+  interface "IMessagePublisher" as IMessagePublisher
+  component "IJob / TransportJobRequest /\nRouteInfo / JobStatusEvent" as CoreModels
+}
+
+package "FMS.Infrastructure" {
+  component "MongoTransportJobRepository" as MongoRepository
+  component "GoogleMapsRoutingService" as GoogleMaps
+  component "RabbitMqPublisher" as RabbitPublisher
+  component "Development mocks\n(repository / routing / publisher)" as Mocks
+}
+
+database "MongoDB\nFmsDb.Jobs" as Mongo
+cloud "Google Routes API" as RoutesApi
+queue "RabbitMQ\njob-status-queue" as Rabbit
+
+Client --> Controller : HTTP
+Controller --> IFacade
+Facade ..|> IFacade
+Facade --> IJobManagement
+Facade --> IRouting
+JobManagement ..|> IJobManagement
+JobManagement --> IJobRepository
+JobManagement --> IJobFactory
+JobManagement --> IMessagePublisher : publish job status
+JobManagement --> StateMachine : status transitions
+JobFactory ..|> IJobFactory
+
+MongoRepository ..|> IJobRepository
+GoogleMaps ..|> IRouting
+RabbitPublisher ..|> IMessagePublisher
+Mocks ..|> IJobRepository
+Mocks ..|> IRouting
+Mocks ..|> IMessagePublisher
+
+MongoRepository --> Mongo : persist / read jobs
+GoogleMaps --> RoutesApi : compute route
+RabbitPublisher --> Rabbit : publish status event
+
+Host ..> JobManagement : register
+Host ..> Facade : register
+Host ..> MongoRepository : production registration
+Host ..> GoogleMaps : production registration
+Host ..> RabbitPublisher : production registration
+Host ..> Mocks : Development registration
+
+note right of RabbitPublisher
+  Job creation and status transitions
+  publish status events after persistence.
+end note
+note bottom of Mocks
+  Development uses mock implementations.
+  Other environments use real infrastructure.
+end note
+@enduml
+
+@startuml FMS_Create_Job_Sequence
+title FMS - Create Transport Job
+
+actor "API Client" as Client
+participant "TransportJobController" as Controller
+participant "TransportJobFacade" as Facade
+participant "IRoutingService\n(GoogleMapsRoutingService or mock)" as Routing
+participant "IJobManagement\n(JobManagement)" as Management
+participant "IJobFactory\n(JobFactory)" as Factory
+participant "ITransportJobRepository\n(Mongo or mock)" as Repository
+participant "IMessagePublisher\n(RabbitMQ or mock)" as Publisher
+database "MongoDB" as Mongo
+queue "RabbitMQ\njob-status-queue" as Rabbit
+
+Client -> Controller : POST /api/transportjob/create\n{ orderId, fromAddress, toAddress }
+Controller -> Facade : CreateTransportJobAsync(request)
+Facade -> Routing : GetRouteAsync(fromAddress, toAddress)
+Routing --> Facade : RouteInfo(distance, duration)
+Facade -> Management : CreateAndSaveJobAsync(orderId, addresses, route)
+Management -> Factory : Create(orderId, addresses, route)
+Factory --> Management : Job(status = Queued)
+Management -> Repository : AddAsync(job)
+alt Production infrastructure
+  Repository -> Mongo : Insert document
+  Mongo --> Repository : insert result
+else Development mock infrastructure
+  note over Repository
+    The mock repository stores the job in memory.
+  end note
+end
+Repository --> Management : complete
+Management -> Publisher : PublishJobStatusAsync(Queued)
+Publisher -> Rabbit : publish JobStatusEvent
+Rabbit --> Publisher : accepted
+Publisher --> Management : complete
+Management --> Facade : job
+Facade --> Controller : job
+Controller --> Client : 200 OK { message, jobId, orderId }
+@enduml
+
+@startuml FMS_Job_State_Machine
+title FMS - Job Status Transitions
+
+[*] --> Queued
+Queued --> Assigned : AssignAgv
+Queued --> Cancelled : Cancel
+Assigned --> InTransit : StartMoving
+Assigned --> Cancelled : Cancel
+InTransit --> Completed : Complete
+InTransit --> Failed : Fail
+Completed --> [*]
+Failed --> [*]
+Cancelled --> [*]
+
+note right of InTransit
+  Unsupported triggers cause
+  InvalidOperationException.
+end note
+note bottom of Queued
+  Job creation and successful status
+  transitions publish a status event
+  after persistence.
+end note
+@enduml

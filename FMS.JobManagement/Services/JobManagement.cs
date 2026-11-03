@@ -11,12 +11,14 @@ using System.Threading.Tasks;
 namespace FMS.JobManagement.Services;
 
 public class JobManagement(ITransportJobRepository jobRepository,
-    IJobFactory jobFactory):IJobManagement
+    IJobFactory jobFactory,
+    IMessagePublisher messagePublisher) : IJobManagement
 {
     public async Task<IJob> CreateAndSaveJobAsync(string sourceOrderId, string fromAddress, string toAddress, double distance, int duration, CancellationToken cancellationToken = default)
     {
         var job = jobFactory.Create(sourceOrderId, fromAddress, toAddress, distance, duration);
         await jobRepository.AddAsync(job);
+        await PublishJobStatusAsync(job);
         return job;
     }
 
@@ -24,7 +26,12 @@ public class JobManagement(ITransportJobRepository jobRepository,
     {
         var job = await jobRepository.GetAsync(jobId) ?? throw new KeyNotFoundException($"Job {jobId} not found.");
 
-        if (!Enum.TryParse<JobStatus>(job.Status, out var currentStatus))
+        JobStatus currentStatus;
+        if (string.Equals(job.Status, "Moving", StringComparison.OrdinalIgnoreCase))
+        {
+            currentStatus = JobStatus.InTransit;
+        }
+        else if (!Enum.TryParse<JobStatus>(job.Status, out currentStatus))
         {
             currentStatus = JobStatus.Queued;
         }
@@ -34,6 +41,7 @@ public class JobManagement(ITransportJobRepository jobRepository,
 
         job.Status = machine.CurrentState.ToString();
         await jobRepository.UpdateAsync(job);
+        await PublishJobStatusAsync(job);
     }
 
     public async Task<IEnumerable<IJob>> GetAllJobsAsync(CancellationToken cancellationToken = default)
@@ -44,5 +52,14 @@ public class JobManagement(ITransportJobRepository jobRepository,
     public async Task<IJob?> GetJobAsync(string jobId, CancellationToken cancellationToken = default)
     {
         return await jobRepository.GetAsync(jobId);
+    }
+
+    private Task PublishJobStatusAsync(IJob job)
+    {
+        return messagePublisher.PublishJobStatusAsync(new JobStatusEvent(
+            job.JobId,
+            job.SourceOrderId,
+            job.Status,
+            DateTime.UtcNow));
     }
 }

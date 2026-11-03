@@ -3,7 +3,7 @@ public enum JobStatus
 {
     Queued,
     Assigned,
-    Moving,
+    InTransit,
     Completed,
     Failed,
     Cancelled

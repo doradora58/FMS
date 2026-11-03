@@ -22,10 +22,10 @@ public class JobStateMachine
             .Permit(JobTrigger.Cancel, JobStatus.Cancelled);
 
         _machine.Configure(JobStatus.Assigned)
-            .Permit(JobTrigger.StartMoving, JobStatus.Moving)
+            .Permit(JobTrigger.StartMoving, JobStatus.InTransit)
             .Permit(JobTrigger.Cancel, JobStatus.Cancelled);
 
-        _machine.Configure(JobStatus.Moving)
+        _machine.Configure(JobStatus.InTransit)
             .Permit(JobTrigger.Complete, JobStatus.Completed)
             .Permit(JobTrigger.Fail, JobStatus.Failed);
 

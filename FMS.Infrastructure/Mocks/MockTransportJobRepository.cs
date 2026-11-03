@@ -33,6 +33,13 @@ public class MockTransportJobRepository : ITransportJobRepository
 
     public Task UpdateAsync(IJob job)
     {
-        throw new NotImplementedException();
+        var index = _jobs.FindIndex(existing => existing.JobId == job.JobId);
+        if (index < 0)
+        {
+            throw new KeyNotFoundException($"Job {job.JobId} not found.");
+        }
+
+        _jobs[index] = job;
+        return Task.CompletedTask;
     }
 }
