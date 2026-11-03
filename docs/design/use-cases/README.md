@@ -1,6 +1,11 @@
 # Use cases
 
 Each use case has a dedicated sequence diagram based on the implemented source.
+Job creation responds with `202 Accepted` and a job ID before the command is
+enqueued by the response-completion callback. Background processing creates
+the job, so an immediate GET may return `404` until that insertion completes.
+The in-memory command queue is not durable; a process failure can lose accepted
+work.
 
 | Use case | Entry point | Sequence |
 |---|---|---|

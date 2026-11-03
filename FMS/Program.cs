@@ -6,6 +6,9 @@ using FMS.Infrastructure.Database;
 using FMS.Infrastructure.Extensions;
 using FMS.Infrastructure.Messaging;
 using FMS.Infrastructure.Mocks;
+using FMS.JobManagement;
+using FMS.JobManagement.Commands;
+using FMS.JobManagement.Handlers;
 using FMS.JobManagement.Services;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Extensions.DiagnosticSources;
@@ -36,7 +39,11 @@ builder.Services.AddOpenTelemetry()
 // Add services to the container.
 
 builder.Services.AddScoped<IJobFactory, JobFactory>();
-builder.Services.AddScoped<IJobManagement, JobManagement>();
+builder.Services.AddSingleton<ICommandExecutor, CommandExecutor>();
+builder.Services.AddScoped<ICommandHandler<CreateTransportJobCommand, Unit>, CreateTransportJobCommandHandler>();
+builder.Services.AddScoped<ICommandHandler<TransitionJobStatusCommand, Unit>, TransitionJobStatusCommandHandler>();
+builder.Services.AddSingleton<ICommandValidator<CreateTransportJobCommand>, CreateTransportJobCommandValidator>();
+builder.Services.AddScoped<IJobQueries, JobQueries>();
 builder.Services.AddScoped<ITransportJobFacade, TransportJobFacade>();
 
 if (builder.Environment.IsDevelopment())

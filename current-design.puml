@@ -13,14 +13,20 @@ package "FMS (ASP.NET Core)" {
 }
 
 package "FMS.JobManagement" {
-  component "JobManagement" as JobManagement
-  component "JobFactory" as JobFactory
+  component "CommandExecutor\n(enqueue / execute)" as CommandExecutor
+  component "CreateTransportJobCommandValidator" as Validator
+  component "CreateTransportJobCommandHandler" as CreateJobHandler
+  component "TransitionJobStatusCommandHandler" as TransitionHandler
+  component "JobQueries" as JobQueries
   component "JobStateMachine" as StateMachine
-  interface "IJobManagement" as IJobManagement
-  interface "IJobFactory" as IJobFactory
+  interface "ICommandExecutor" as ICommandExecutor
+  interface "ICommandQueue<CreateTransportJobCommand>" as ICommandQueue
+  interface "IJobQueries" as IJobQueries
 }
 
 package "FMS.Core (Contracts / Models)" {
+  component "JobFactory" as JobFactory
+  interface "IJobFactory" as IJobFactory
   interface "ITransportJobRepository" as IJobRepository
   interface "IRoutingService" as IRouting
   interface "IMessagePublisher" as IMessagePublisher
@@ -28,9 +34,10 @@ package "FMS.Core (Contracts / Models)" {
 }
 
 package "FMS.Infrastructure" {
+  component "InMemoryJobCreationQueue\n(BackgroundService)" as CommandQueue
   component "MongoTransportJobRepository" as MongoRepository
   component "GoogleMapsRoutingService" as GoogleMaps
-  component "RabbitMqPublisher" as RabbitPublisher
+  component "RabbitMqPublisher\n(external status events only)" as RabbitPublisher
   component "Development mocks\n(repository / routing / publisher)" as Mocks
 }
 
@@ -40,14 +47,23 @@ queue "RabbitMQ\njob-status-queue" as Rabbit
 
 Client --> Controller : HTTP
 Controller --> IFacade
+Controller --> ICommandExecutor : enqueue after response completed
 Facade ..|> IFacade
-Facade --> IJobManagement
-Facade --> IRouting
-JobManagement ..|> IJobManagement
-JobManagement --> IJobRepository
-JobManagement --> IJobFactory
-JobManagement --> IMessagePublisher : publish job status
-JobManagement --> StateMachine : status transitions
+Facade --> Validator
+Facade --> IJobQueries : read queries
+CommandExecutor ..|> ICommandExecutor
+CommandExecutor --> ICommandQueue : enqueue / execute
+CommandQueue ..|> ICommandQueue
+CommandQueue --> ICommandExecutor : background execution
+CreateJobHandler --> IJobRepository : insert / update
+CreateJobHandler --> IJobFactory
+CreateJobHandler --> IRouting : calculate route
+CreateJobHandler --> IMessagePublisher : publish final status
+TransitionHandler --> IJobRepository
+TransitionHandler --> IMessagePublisher : publish status
+TransitionHandler --> StateMachine : validate transition
+JobQueries ..|> IJobQueries
+JobQueries --> IJobRepository
 JobFactory ..|> IJobFactory
 
 MongoRepository ..|> IJobRepository
@@ -59,22 +75,22 @@ Mocks ..|> IMessagePublisher
 
 MongoRepository --> Mongo : persist / read jobs
 GoogleMaps --> RoutesApi : compute route
-RabbitPublisher --> Rabbit : publish status event
+RabbitPublisher --> Rabbit : publish external status event
 
-Host ..> JobManagement : register
+Host ..> CommandExecutor : register
+Host ..> Validator : register
+Host ..> CreateJobHandler : register
+Host ..> TransitionHandler : register
+Host ..> JobQueries : register
 Host ..> Facade : register
 Host ..> MongoRepository : production registration
 Host ..> GoogleMaps : production registration
 Host ..> RabbitPublisher : production registration
 Host ..> Mocks : Development registration
 
-note right of RabbitPublisher
-  Job creation and status transitions
-  publish status events after persistence.
-end note
-note bottom of Mocks
-  Development uses mock implementations.
-  Other environments use real infrastructure.
+note bottom of CommandQueue
+  Process-local and non-durable.
+  RabbitMQ is not used for command execution.
 end note
 @enduml
 
@@ -84,44 +100,77 @@ title FMS - Create Transport Job
 actor "API Client" as Client
 participant "TransportJobController" as Controller
 participant "TransportJobFacade" as Facade
-participant "IRoutingService\n(GoogleMapsRoutingService or mock)" as Routing
-participant "IJobManagement\n(JobManagement)" as Management
-participant "IJobFactory\n(JobFactory)" as Factory
-participant "ITransportJobRepository\n(Mongo or mock)" as Repository
-participant "IMessagePublisher\n(RabbitMQ or mock)" as Publisher
-database "MongoDB" as Mongo
-queue "RabbitMQ\njob-status-queue" as Rabbit
+participant "CreateTransportJobCommandValidator" as Validator
+participant "CommandExecutor" as Executor
+participant "InMemoryJobCreationQueue" as CommandQueue
 
 Client -> Controller : POST /api/transportjob/create\n{ orderId, fromAddress, toAddress }
 Controller -> Facade : CreateTransportJobAsync(request)
-Facade -> Routing : GetRouteAsync(fromAddress, toAddress)
-Routing --> Facade : RouteInfo(distance, duration)
-Facade -> Management : CreateAndSaveJobAsync(orderId, addresses, route)
-Management -> Factory : Create(orderId, addresses, route)
-Factory --> Management : Job(status = Queued)
-Management -> Repository : AddAsync(job)
-alt Production infrastructure
-  Repository -> Mongo : Insert document
-  Mongo --> Repository : insert result
-else Development mock infrastructure
-  note over Repository
-    The mock repository stores the job in memory.
-  end note
+Facade -> Facade : Create command with new JobId
+Facade -> Validator : Validate(command)
+alt validation fails
+  Validator --> Facade : field errors
+  Facade --> Controller : validation error
+  Controller --> Client : 400 Bad Request
+else validation succeeds
+  Validator --> Facade : no errors
+  Facade --> Controller : validated command
+  Controller -> Controller : Register Response.OnCompleted callback
+  Controller --> Client : 202 Accepted { jobId, status = Accepted }
+  == after response completion ==
+  Controller -> Executor : EnqueueAsync(command)
+  Executor -> CommandQueue : enqueue in process memory
+  CommandQueue --> Executor : queued
 end
-Repository --> Management : complete
-Management -> Publisher : PublishJobStatusAsync(Queued)
-Publisher -> Rabbit : publish JobStatusEvent
-Rabbit --> Publisher : accepted
-Publisher --> Management : complete
-Management --> Facade : job
-Facade --> Controller : job
-Controller --> Client : 200 OK { message, jobId, orderId }
+
+== Background command execution ==
+
+participant "CommandExecutor" as WorkerExecutor
+participant "CreateTransportJobCommandHandler" as Handler
+participant "IJobFactory\n(JobFactory)" as Factory
+participant "ITransportJobRepository\n(Mongo or mock)" as Repository
+database "MongoDB" as Mongo
+participant "IRoutingService" as Routing
+participant "IMessagePublisher" as Publisher
+queue "RabbitMQ\njob-status-queue" as StatusQueue
+
+CommandQueue -> WorkerExecutor : dequeue command
+WorkerExecutor -> Handler : Execute(CreateTransportJobCommand)
+Handler -> Repository : GetAsync(jobId)
+Repository --> Handler : existing job or null
+opt first delivery
+  Handler -> Factory : CreatePendingRoute(jobId, orderId, addresses)
+  Factory --> Handler : Job(status = Routing)
+  Handler -> Repository : AddAsync(job)
+  Repository -> Mongo : insert JobDocument\nafter response completion
+  Mongo --> Repository : insert result
+end
+Handler -> Routing : GetRouteAsync(addresses)
+alt route calculated
+  Routing --> Handler : RouteInfo
+  Handler -> Repository : update route and set Queued
+else route failure
+  Routing --> Handler : error
+  Handler -> Repository : set Failed
+end
+Handler -> Publisher : PublishJobStatusAsync(status)
+Publisher -> StatusQueue : external JobStatusEvent
+StatusQueue --> Publisher : publish call completes
+Publisher --> Handler : complete
+Handler --> WorkerExecutor : complete
+
+note over Controller,CommandQueue
+  The response-completed callback enqueues the command.
+  A process failure after 202 can lose accepted work.
+end note
 @enduml
 
 @startuml FMS_Job_State_Machine
 title FMS - Job Status Transitions
 
-[*] --> Queued
+[*] --> Routing
+Routing --> Queued : route calculated
+Routing --> Failed : route failed
 Queued --> Assigned : AssignAgv
 Queued --> Cancelled : Cancel
 Assigned --> InTransit : StartMoving

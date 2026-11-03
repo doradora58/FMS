@@ -13,24 +13,46 @@ package "FMS.Controllers" {
 
 package "FMS.Facade" {
   interface ITransportJobFacade {
-    +CreateTransportJobAsync(req): Task<IJob>
+    +CreateTransportJobAsync(req): Task<CreateTransportJobCommand>
     +GetAllJobsAsync(): Task<IEnumerable<IJob>>
     +GetJobAsync(jobId): Task<IJob?>
     +ProgressJobAsync(jobId, trigger): Task
   }
   class TransportJobFacade {
-    +CreateTransportJobAsync(req): Task<IJob>
+    +CreateTransportJobAsync(req): Task<CreateTransportJobCommand>
     +GetAllJobsAsync(): Task<IEnumerable<IJob>>
     +GetJobAsync(jobId): Task<IJob?>
     +ProgressJobAsync(jobId, trigger): Task
   }
 }
 
+package "FMS.JobManagement.Commands" {
+  interface ICommand<TResult>
+  interface ICommandHandler<TCommand, TResult> {
+    +HandleAsync(command, cancellationToken): Task<TResult>
+  }
+  interface ICommandExecutor {
+    +EnqueueAsync(command, cancellationToken): Task
+    +ExecuteAsync(command, cancellationToken): Task<TResult>
+  }
+  class CommandExecutor
+  class CreateTransportJobCommand
+  class TransitionJobStatusCommand
+  interface ICommandQueue<TCommand>
+  interface ICommandValidator<TCommand>
+  class CreateTransportJobCommandValidator
+  class CommandValidationException
+  class Unit
+}
+
+package "FMS.JobManagement.Handlers" {
+  class CreateTransportJobCommandHandler
+  class TransitionJobStatusCommandHandler
+}
+
 package "FMS.JobManagement.Services" {
-  interface IJobManagement
-  class JobManagement {
-    +CreateAndSaveJobAsync(...): Task<IJob>
-    +TransitionStatusAsync(jobId, trigger): Task
+  interface IJobQueries
+  class JobQueries {
     +GetAllJobsAsync(): Task<IEnumerable<IJob>>
     +GetJobAsync(jobId): Task<IJob?>
   }
@@ -47,6 +69,7 @@ package "FMS.JobManagement.StateMachine" {
 package "FMS.JobManagement.Models" {
   class Job
   enum JobStatus {
+    Routing
     Queued
     Assigned
     InTransit
@@ -80,6 +103,7 @@ package "FMS.Core" {
   }
   interface IRoutingService
   interface IJobFactory {
+    +CreatePendingRoute(jobId, orderId, fromAddress, toAddress): IJob
     +Create(orderId, fromAddress, toAddress, distance, duration): IJob
   }
   class TransportJobRequest
@@ -87,31 +111,43 @@ package "FMS.Core" {
   class JobFactory
 }
 
-package "FMS.Infrastructure (Production)" {
+package "FMS.Infrastructure" {
+  class InMemoryJobCreationQueue <<BackgroundService>>
   class MongoTransportJobRepository
   class JobDocument
   class RabbitMqPublisher
   class GoogleMapsRoutingService
-}
-
-package "FMS.Infrastructure (Development)" {
   class MockTransportJobRepository
   class MockMessagePublisher
   class MockRoutingService
 }
 
 TransportJobController --> ITransportJobFacade
+TransportJobController --> ICommandExecutor : enqueue after response completion
 TransportJobFacade ..|> ITransportJobFacade
-TransportJobFacade --> IJobManagement
-TransportJobFacade --> IRoutingService
+TransportJobFacade --> ICommandExecutor
+TransportJobFacade --> IJobQueries
+TransportJobFacade --> ICommandValidator : validate create command
 TransportJobFacade ..> TransportJobRequest
 
-JobManagement ..|> IJobManagement
-JobManagement --> ITransportJobRepository
-JobManagement --> IJobFactory
-JobManagement --> IMessagePublisher
-JobManagement --> JobStateMachine
-JobManagement ..> JobStatusEvent
+CommandExecutor ..|> ICommandExecutor
+CommandExecutor --> ICommandHandler : resolve and execute
+CommandExecutor --> ICommandQueue : enqueue command
+CreateTransportJobCommandValidator ..|> ICommandValidator
+CreateTransportJobCommandValidator ..> CreateTransportJobCommand
+CreateTransportJobCommandHandler ..|> ICommandHandler
+CreateTransportJobCommandHandler --> ITransportJobRepository
+CreateTransportJobCommandHandler --> IJobFactory
+CreateTransportJobCommandHandler --> IRoutingService
+CreateTransportJobCommandHandler --> IMessagePublisher
+CreateTransportJobCommandHandler ..> JobStatusEvent
+TransitionJobStatusCommandHandler ..|> ICommandHandler
+TransitionJobStatusCommandHandler --> ITransportJobRepository
+TransitionJobStatusCommandHandler --> IMessagePublisher
+TransitionJobStatusCommandHandler --> JobStateMachine
+TransitionJobStatusCommandHandler ..> JobStatusEvent
+JobQueries ..|> IJobQueries
+JobQueries --> ITransportJobRepository
 
 JobStateMachine --> JobStatus
 JobStateMachine --> JobTrigger
@@ -129,9 +165,11 @@ GoogleMapsRoutingService ..|> IRoutingService
 MockTransportJobRepository ..|> ITransportJobRepository
 MockMessagePublisher ..|> IMessagePublisher
 MockRoutingService ..|> IRoutingService
+InMemoryJobCreationQueue ..|> ICommandQueue
+InMemoryJobCreationQueue --> ICommandExecutor : execute queued command
 
-note bottom of JobManagement
-  Saves the job first, then publishes
-  JobStatusEvent. No transactional Outbox.
+note bottom of InMemoryJobCreationQueue
+  Process-local, non-durable queue.
+  RabbitMQ is used only by the external event publisher.
 end note
 @enduml

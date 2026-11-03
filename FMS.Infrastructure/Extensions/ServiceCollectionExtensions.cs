@@ -5,6 +5,7 @@ using FMS.Infrastructure.External;
 using FMS.Infrastructure.Factories;
 using FMS.Infrastructure.Messaging;
 using FMS.Infrastructure.Mocks;
+using FMS.JobManagement.Commands;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
@@ -28,6 +29,7 @@ public static class ServiceCollectionExtensions
             return factory.CreateConnectionAsync().GetAwaiter().GetResult();
         });
         services.AddSingleton<IMessagePublisher, RabbitMqPublisher>();
+        AddInMemoryJobCreationQueue(services);
 
         // MongoDB
         services.AddScoped<ITransportJobRepository, MongoTransportJobRepository>();
@@ -44,6 +46,7 @@ public static class ServiceCollectionExtensions
     {
         // RabbitMQ
         services.AddSingleton<IMessagePublisher, MockMessagePublisher>();
+        AddInMemoryJobCreationQueue(services);
         
         // MongoDB
         services.AddSingleton<ITransportJobRepository, MockTransportJobRepository>();
@@ -53,5 +56,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRoutingService, MockRoutingService>();
 
         return services;
+    }
+
+    private static void AddInMemoryJobCreationQueue(IServiceCollection services)
+    {
+        services.AddSingleton<InMemoryJobCreationQueue>();
+        services.AddSingleton<ICommandQueue<CreateTransportJobCommand>>(
+            sp => sp.GetRequiredService<InMemoryJobCreationQueue>());
+        services.AddHostedService(sp => sp.GetRequiredService<InMemoryJobCreationQueue>());
     }
 }

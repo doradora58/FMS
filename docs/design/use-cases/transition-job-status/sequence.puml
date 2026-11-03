@@ -3,7 +3,8 @@ title Transition Job Status
 
 actor "Application Caller" as Caller
 participant "TransportJobFacade" as Facade
-participant "JobManagement" as Management
+participant "CommandExecutor" as Executor
+participant "TransitionJobStatusCommandHandler" as Handler
 participant "ITransportJobRepository\n(MongoDB or mock)" as Repository
 participant "JobStateMachine" as StateMachine
 participant "IMessagePublisher\n(RabbitMQ or mock)" as Publisher
@@ -16,39 +17,43 @@ note over Caller,Facade
 end note
 
 Caller -> Facade : ProgressJobAsync(jobId, trigger)
-Facade -> Management : TransitionStatusAsync(jobId, trigger)
-Management -> Repository : GetAsync(jobId)
+Facade -> Executor : ExecuteAsync(TransitionJobStatusCommand)
+Executor -> Handler : HandleAsync(command)
+Handler -> Repository : GetAsync(jobId)
 alt Job not found
-  Repository --> Management : null
-  Management --> Facade : KeyNotFoundException
+  Repository --> Handler : null
+  Handler --> Executor : KeyNotFoundException
+  Executor --> Facade : error
   Facade --> Caller : error
 else Job found
-  Repository --> Management : job(current status)
-  Management -> StateMachine : Create(current status)
-  Management -> StateMachine : Fire(trigger)
+  Repository --> Handler : job(current status)
+  Handler -> StateMachine : Create(current status)
+  Handler -> StateMachine : Fire(trigger)
   alt Trigger not permitted
-    StateMachine --> Management : InvalidOperationException
-    Management --> Facade : error
+    StateMachine --> Handler : InvalidOperationException
+    Handler --> Executor : error
+    Executor --> Facade : error
     Facade --> Caller : error
   else Trigger permitted
-    StateMachine --> Management : new status
-    Management -> Repository : UpdateAsync(job)
+    StateMachine --> Handler : new status
+    Handler -> Repository : UpdateAsync(job)
     alt Production
       Repository -> Mongo : Replace JobDocument
       Mongo --> Repository : update result
     else Development
       Repository -> Repository : Update in-memory job
     end
-    Repository --> Management : complete
-    Management -> Publisher : PublishJobStatusAsync(new status)
+    Repository --> Handler : complete
+    Handler -> Publisher : PublishJobStatusAsync(new status)
     alt Production
       Publisher -> Rabbit : Publish JobStatusEvent
       Rabbit --> Publisher : publish call completes
     else Development
       Publisher -> Publisher : Log mock event
     end
-    Publisher --> Management : complete
-    Management --> Facade : complete
+    Publisher --> Handler : complete
+    Handler --> Executor : complete
+    Executor --> Facade : complete
     Facade --> Caller : complete
   end
 end

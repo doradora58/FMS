@@ -4,22 +4,22 @@ title List Transport Jobs
 actor "API Client" as Client
 participant "TransportJobController" as Controller
 participant "TransportJobFacade" as Facade
-participant "JobManagement" as Management
+participant "JobQueries" as Queries
 participant "ITransportJobRepository\n(MongoDB or mock)" as Repository
 database "MongoDB\nFmsDb.Jobs" as Mongo
 
 Client -> Controller : GET /api/transportjob
 Controller -> Facade : GetAllJobsAsync()
-Facade -> Management : GetAllJobsAsync()
-Management -> Repository : GetAllAsync()
+Facade -> Queries : GetAllJobsAsync()
+Queries -> Repository : GetAllAsync()
 alt Production
   Repository -> Mongo : Find all Jobs
   Mongo --> Repository : JobDocuments
 else Development
   Repository -> Repository : Read in-memory jobs
 end
-Repository --> Management : jobs
-Management --> Facade : jobs
+Repository --> Queries : jobs
+Queries --> Facade : jobs
 Facade --> Controller : jobs
 Controller --> Client : 200 OK with jobs
 @enduml

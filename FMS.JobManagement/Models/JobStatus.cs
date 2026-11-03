@@ -1,6 +1,7 @@
 ﻿namespace FMS.JobManagement;
 public enum JobStatus
 {
+    Routing,
     Queued,
     Assigned,
     InTransit,

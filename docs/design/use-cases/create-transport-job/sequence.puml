@@ -1,46 +1,76 @@
 @startuml FMS_Create_Transport_Job
-title Create Transport Job
+title Create Transport Job Asynchronously
 
 actor "API Client" as Client
 participant "TransportJobController" as Controller
 participant "TransportJobFacade" as Facade
-participant "IRoutingService\n(Google Maps or mock)" as Routing
-participant "JobManagement" as Management
-participant "JobFactory" as Factory
-participant "ITransportJobRepository\n(MongoDB or mock)" as Repository
-participant "IMessagePublisher\n(RabbitMQ or mock)" as Publisher
-database "MongoDB\nFmsDb.Jobs" as Mongo
-queue "RabbitMQ\njob-status-queue" as Rabbit
+participant "CreateTransportJobCommandValidator" as Validator
+participant "CommandExecutor" as Executor
+participant "InMemoryJobCreationQueue\n(BackgroundService)" as CommandQueue
 
 Client -> Controller : POST /api/transportjob/create\nTransportJobRequest
 Controller -> Facade : CreateTransportJobAsync(request)
-Facade -> Routing : GetRouteAsync(fromAddress, toAddress)
-Routing --> Facade : RouteInfo(distance, duration)
-Facade -> Management : CreateAndSaveJobAsync(orderId, addresses, route)
-Management -> Factory : Create(orderId, addresses, route)
-Factory --> Management : Job(status = Queued)
-Management -> Repository : AddAsync(job)
-alt Production
-  Repository -> Mongo : Insert JobDocument
-  Mongo --> Repository : insert result
-else Development
-  Repository -> Repository : Store job in memory
+Facade -> Facade : Create command with new JobId
+Facade -> Validator : Validate(command)
+alt Validation fails
+  Validator --> Facade : field errors
+  Facade --> Controller : CommandValidationException
+  Controller --> Client : 400 Bad Request\nValidationProblemDetails
+else Validation succeeds
+  Validator --> Facade : no errors
+  Facade --> Controller : validated command
+  Controller -> Controller : Register Response.OnCompleted callback
+  Controller --> Client : 202 Accepted\n{ jobId, orderId, status = Accepted }
+  == After response is sent ==
+  Controller -> Executor : EnqueueAsync(command)
+  Executor -> CommandQueue : EnqueueAsync(command)
+  CommandQueue --> Executor : queued in process memory
+  Executor --> Controller : accepted for background execution
 end
-Repository --> Management : complete
-Management -> Publisher : PublishJobStatusAsync(Queued)
-alt Production
-  Publisher -> Rabbit : Publish JobStatusEvent
-  Rabbit --> Publisher : publish call completes
-else Development
-  Publisher -> Publisher : Log mock event
-end
-Publisher --> Management : complete
-Management --> Facade : job
-Facade --> Controller : job
-Controller --> Client : 200 OK\n{ message, jobId, orderId }
 
-note over Repository,Publisher
-  Job persistence and event publishing are separate operations.
-  A publish failure occurs after the job has been saved.
+== Background command execution ==
+
+participant "CommandExecutor" as WorkerExecutor
+participant "CreateTransportJobCommandHandler" as Handler
+participant "JobFactory" as Factory
+participant "ITransportJobRepository\n(MongoDB or mock)" as Repository
+database "MongoDB\nFmsDb.Jobs" as Mongo
+participant "IRoutingService" as Routing
+participant "IMessagePublisher\n(RabbitMQ or mock)" as StatusPublisher
+queue "RabbitMQ\njob-status-queue" as StatusQueue
+
+CommandQueue -> WorkerExecutor : Dequeue command
+WorkerExecutor -> Handler : Execute(CreateTransportJobCommand)
+Handler -> Repository : GetAsync(jobId)\n(check duplicate delivery)
+Repository --> Handler : existing job or null
+alt Existing job already processed
+  Handler --> WorkerExecutor : no-op
+else New job or existing Routing job
+  opt First delivery
+    Handler -> Factory : CreatePendingRoute(jobId, orderId, addresses)
+    Factory --> Handler : Job(status = Routing)
+    Handler -> Repository : AddAsync(job)
+    Repository -> Mongo : Insert JobDocument\n(after response completion)
+    Mongo --> Repository : insert result
+  end
+  Handler -> Routing : GetRouteAsync(addresses)
+  alt Route succeeds
+    Routing --> Handler : RouteInfo
+    Handler -> Repository : Update route, status = Queued
+  else Route calculation fails
+    Routing --> Handler : error
+    Handler -> Repository : Update status = Failed
+  end
+  Handler -> StatusPublisher : PublishJobStatusAsync(new status)
+  StatusPublisher -> StatusQueue : Publish external JobStatusEvent
+  StatusQueue --> StatusPublisher : publish call completes
+  StatusPublisher --> Handler : complete
+end
+Handler --> WorkerExecutor : complete
+
+note over Controller,CommandQueue
+  Command execution starts only from the response-completed callback.
+  The command queue is in memory, not RabbitMQ or durable storage.
+  A process failure after 202 can lose a queued or not-yet-enqueued command.
 end note
 @enduml

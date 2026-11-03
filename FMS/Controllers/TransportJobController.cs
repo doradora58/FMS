@@ -1,19 +1,61 @@
 ﻿using FMS.Core.Models;
 using FMS.Core.Services;
 using FMS.Facade;
+using FMS.JobManagement.Commands;
 using FMS.JobManagement.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace FMS.Controllers;
 [ApiController]
 [Route("api/transportjob")]
-public class TransportJobController(ITransportJobFacade transportJobFacade) : ControllerBase
+public class TransportJobController(
+    ITransportJobFacade transportJobFacade,
+    ICommandExecutor commandExecutor,
+    ILogger<TransportJobController> logger) : ControllerBase
 {
     [HttpPost("create")]
-    public async Task<IActionResult> Create([FromBody] TransportJobRequest req)
+    public async Task<IActionResult> Create(
+        [FromBody] TransportJobRequest req,
+        CancellationToken cancellationToken = default)
     {
-        var job = await transportJobFacade.CreateTransportJobAsync(req);
-        return Ok(new { message = "Job created and queued", jobId = job.JobId, orderId = req.OrderId });
+        CreateTransportJobCommand command;
+        try
+        {
+            command = await transportJobFacade.CreateTransportJobAsync(req, cancellationToken);
+        }
+        catch (CommandValidationException exception)
+        {
+            return BadRequest(new ValidationProblemDetails(
+                exception.Errors.ToDictionary(error => error.Key, error => error.Value)));
+        }
+
+        Response.OnCompleted(async () =>
+        {
+            try
+            {
+                await commandExecutor.EnqueueAsync(command, CancellationToken.None);
+            }
+            catch (Exception exception)
+            {
+                logger.LogCritical(
+                    exception,
+                    "Accepted create command for job {JobId} could not be dispatched.",
+                    command.JobId);
+                throw;
+            }
+        });
+
+        return AcceptedAtAction(
+            nameof(GetById),
+            new { jobId = command.JobId },
+            new
+            {
+                message = "Job accepted for processing",
+                jobId = command.JobId,
+                orderId = command.OrderId,
+                status = "Accepted"
+            });
     }
 
     [HttpGet]
