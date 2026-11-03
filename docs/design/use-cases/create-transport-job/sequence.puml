@@ -38,6 +38,8 @@ database "MongoDB\nFmsDb.Jobs" as Mongo
 participant "IRoutingService" as Routing
 participant "IMessagePublisher\n(RabbitMQ or mock)" as StatusPublisher
 queue "RabbitMQ\njob-status-queue" as StatusQueue
+participant "FMS Dashboard" as Dashboard
+participant "Google Maps JavaScript API" as Maps
 
 CommandQueue -> WorkerExecutor : Dequeue command
 WorkerExecutor -> Handler : Execute(CreateTransportJobCommand)
@@ -55,8 +57,8 @@ else New job or existing Routing job
   end
   Handler -> Routing : GetRouteAsync(addresses)
   alt Route succeeds
-    Routing --> Handler : RouteInfo
-    Handler -> Repository : Update route, status = Queued
+    Routing --> Handler : RouteInfo(distance, duration,\npolyline, start/end coordinates)
+    Handler -> Repository : Update route geometry,\nmetrics, status = Queued
   else Route calculation fails
     Routing --> Handler : error
     Handler -> Repository : Update status = Failed
@@ -67,6 +69,14 @@ else New job or existing Routing job
   StatusPublisher --> Handler : complete
 end
 Handler --> WorkerExecutor : complete
+
+== Inspect route on the dashboard ==
+
+Dashboard -> Facade : GetAllJobsAsync()
+Facade --> Dashboard : jobs with stored route geometry
+Dashboard -> Dashboard : Select job and decode encoded polyline
+Dashboard -> Maps : Draw route and From/To markers
+Maps --> Dashboard : Render map and route
 
 note over Controller,CommandQueue
   Command execution starts only from the response-completed callback.

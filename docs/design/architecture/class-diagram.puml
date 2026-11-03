@@ -91,6 +91,11 @@ package "FMS.Core" {
     +JobId: string
     +SourceOrderId: string
     +Status: string
+    +RoutePolyline: string?
+    +OriginLatitude: double?
+    +OriginLongitude: double?
+    +DestinationLatitude: double?
+    +DestinationLongitude: double?
   }
   interface ITransportJobRepository {
     +AddAsync(job): Task
@@ -107,6 +112,11 @@ package "FMS.Core" {
     +Create(orderId, fromAddress, toAddress, distance, duration): IJob
   }
   class TransportJobRequest
+  class RouteInfo {
+    +DistanceMeters: double
+    +DurationSeconds: int
+    +EncodedPolyline: string?
+  }
   class JobStatusEvent
   class JobFactory
 }
@@ -161,6 +171,7 @@ MongoTransportJobRepository ..|> ITransportJobRepository
 MongoTransportJobRepository --> JobDocument
 RabbitMqPublisher ..|> IMessagePublisher
 GoogleMapsRoutingService ..|> IRoutingService
+GoogleMapsRoutingService ..> RouteInfo : returns route geometry
 
 MockTransportJobRepository ..|> ITransportJobRepository
 MockMessagePublisher ..|> IMessagePublisher

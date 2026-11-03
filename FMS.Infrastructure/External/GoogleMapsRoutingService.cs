@@ -29,7 +29,9 @@ public class GoogleMapsRoutingService(HttpClient httpClient, IConfiguration conf
         requestMessage.Content = JsonContent.Create(requestBody);
 
         requestMessage.Headers.Add("X-Goog-Api-Key", apiKey);
-        requestMessage.Headers.Add("X-Goog-FieldMask", "routes.distanceMeters,routes.duration");
+        requestMessage.Headers.Add(
+            "X-Goog-FieldMask",
+            "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.legs.startLocation,routes.legs.endLocation");
 
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
 
@@ -54,9 +56,16 @@ public class GoogleMapsRoutingService(HttpClient httpClient, IConfiguration conf
             int.TryParse(numericPart, out durationSeconds);
         }
 
+        var start = route.Legs.FirstOrDefault()?.StartLocation?.LatLng;
+        var end = route.Legs.LastOrDefault()?.EndLocation?.LatLng;
+
         return new RouteInfo(
             DistanceMeters: route.DistanceMeters,
-            DurationSeconds: durationSeconds
-        );
+            DurationSeconds: durationSeconds,
+            EncodedPolyline: route.Polyline?.EncodedPolyline,
+            OriginLatitude: start?.Latitude,
+            OriginLongitude: start?.Longitude,
+            DestinationLatitude: end?.Latitude,
+            DestinationLongitude: end?.Longitude);
     }
 }

@@ -37,4 +37,40 @@ public class RouteItem
 
     [JsonPropertyName("duration")]
     public string Duration { get; set; } = string.Empty;
+
+    [JsonPropertyName("polyline")]
+    public RoutePolyline? Polyline { get; set; }
+
+    [JsonPropertyName("legs")]
+    public List<RouteLeg> Legs { get; set; } = [];
+}
+
+public class RoutePolyline
+{
+    [JsonPropertyName("encodedPolyline")]
+    public string EncodedPolyline { get; set; } = string.Empty;
+}
+
+public class RouteLeg
+{
+    [JsonPropertyName("startLocation")]
+    public RouteLocation? StartLocation { get; set; }
+
+    [JsonPropertyName("endLocation")]
+    public RouteLocation? EndLocation { get; set; }
+}
+
+public class RouteLocation
+{
+    [JsonPropertyName("latLng")]
+    public RouteLatLng? LatLng { get; set; }
+}
+
+public class RouteLatLng
+{
+    [JsonPropertyName("latitude")]
+    public double Latitude { get; set; }
+
+    [JsonPropertyName("longitude")]
+    public double Longitude { get; set; }
 }

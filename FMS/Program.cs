@@ -89,6 +89,14 @@ app.MapGet("/api/version", () =>
     return Results.Ok(new { version });
 });
 
+app.MapGet("/api/maps/config", (IConfiguration configuration) =>
+{
+    var apiKey = configuration["GoogleMaps:JavaScriptApiKey"];
+    return string.IsNullOrWhiteSpace(apiKey)
+        ? Results.Ok(new { configured = false })
+        : Results.Ok(new { configured = true, apiKey });
+});
+
 app.UseRouting();
 app.MapControllers();
 app.MapPrometheusScrapingEndpoint();

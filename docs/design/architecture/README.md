@@ -29,4 +29,10 @@ Production dependency injection uses MongoDB, Google Routes, and RabbitMQ for
 status-event publishing. Development dependency injection uses in-memory/mock
 repository, routing, and publisher implementations.
 
+The dashboard uses the Google Maps JavaScript API to draw the route returned by
+Google Routes. Route polyline and endpoint coordinates are stored with each
+job. Configure a separate, HTTP-referrer-restricted
+`GoogleMaps__JavaScriptApiKey`; the server-side `GoogleMaps__ApiKey` must never
+be sent to the browser. The development mock supplies a sample Tokyo route.
+
 For operation-by-operation flows, see the [use-case sequence diagrams](../use-cases/README.md).

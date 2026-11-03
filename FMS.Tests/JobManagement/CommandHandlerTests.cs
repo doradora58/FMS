@@ -45,7 +45,14 @@ public class CommandHandlerTests
         routingService.GetRouteAsync("A", "B", Arg.Any<CancellationToken>()).Returns(_ =>
         {
             operations.Add("route");
-            return Task.FromResult(new RouteInfo(100, 60));
+            return Task.FromResult(new RouteInfo(
+                100,
+                60,
+                "encoded-route",
+                35.1,
+                139.2,
+                35.4,
+                139.5));
         });
         repository.UpdateAsync(job).Returns(_ =>
         {
@@ -70,6 +77,11 @@ public class CommandHandlerTests
         // Assert
         Assert.Equal(100, job.DistanceMeters);
         Assert.Equal(60, job.EstimatedDurationSeconds);
+        Assert.Equal("encoded-route", job.RoutePolyline);
+        Assert.Equal(35.1, job.OriginLatitude);
+        Assert.Equal(139.2, job.OriginLongitude);
+        Assert.Equal(35.4, job.DestinationLatitude);
+        Assert.Equal(139.5, job.DestinationLongitude);
         Assert.Equal(JobStatus.Queued.ToString(), job.Status);
         await repository.Received(1).AddAsync(job);
         await routingService.Received(1).GetRouteAsync("A", "B", Arg.Any<CancellationToken>());

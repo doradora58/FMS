@@ -6,4 +6,11 @@ using System.Threading.Tasks;
 
 namespace FMS.Core.Models;
 
-public record RouteInfo(double DistanceMeters, int DurationSeconds);
+public record RouteInfo(
+    double DistanceMeters,
+    int DurationSeconds,
+    string? EncodedPolyline = null,
+    double? OriginLatitude = null,
+    double? OriginLongitude = null,
+    double? DestinationLatitude = null,
+    double? DestinationLongitude = null);

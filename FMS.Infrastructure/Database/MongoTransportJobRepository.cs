@@ -52,8 +52,26 @@ public class MongoTransportJobRepository(IConfiguration configuration,ILogger<Mo
     public async Task UpdateAsync(IJob job)
     {
         var filter = Builders<JobDocument>.Filter.Eq(d => d.JobId, job.JobId);
-        var document = JobDocument.FromDomain(job);
+        var update = Builders<JobDocument>.Update.Combine(
+            Builders<JobDocument>.Update.Set(document => document.JobId, job.JobId),
+            Builders<JobDocument>.Update.Set(document => document.SourceOrderId, job.SourceOrderId),
+            Builders<JobDocument>.Update.Set(document => document.FromAddress, job.FromAddress),
+            Builders<JobDocument>.Update.Set(document => document.ToAddress, job.ToAddress),
+            Builders<JobDocument>.Update.Set(document => document.DistanceMeters, job.DistanceMeters),
+            Builders<JobDocument>.Update.Set(document => document.EstimatedDurationSeconds, job.EstimatedDurationSeconds),
+            Builders<JobDocument>.Update.Set(document => document.RoutePolyline, job.RoutePolyline),
+            Builders<JobDocument>.Update.Set(document => document.OriginLatitude, job.OriginLatitude),
+            Builders<JobDocument>.Update.Set(document => document.OriginLongitude, job.OriginLongitude),
+            Builders<JobDocument>.Update.Set(document => document.DestinationLatitude, job.DestinationLatitude),
+            Builders<JobDocument>.Update.Set(document => document.DestinationLongitude, job.DestinationLongitude),
+            Builders<JobDocument>.Update.Set(document => document.Status, job.Status),
+            Builders<JobDocument>.Update.Set(document => document.AssignedAgvId, job.AssignedAgvId),
+            Builders<JobDocument>.Update.Set(document => document.CreatedAt, job.CreatedAt));
 
-        await _jobsCollection.ReplaceOneAsync(filter, document);
+        var result = await _jobsCollection.UpdateOneAsync(filter, update);
+        if (result.MatchedCount == 0)
+        {
+            throw new KeyNotFoundException($"Job {job.JobId} not found.");
+        }
     }
 }

@@ -43,6 +43,11 @@ public sealed class CreateTransportJobCommandHandler(
 
             job.DistanceMeters = route.DistanceMeters;
             job.EstimatedDurationSeconds = route.DurationSeconds;
+            job.RoutePolyline = route.EncodedPolyline;
+            job.OriginLatitude = route.OriginLatitude;
+            job.OriginLongitude = route.OriginLongitude;
+            job.DestinationLatitude = route.DestinationLatitude;
+            job.DestinationLongitude = route.DestinationLongitude;
             job.Status = JobStatus.Queued.ToString();
         }
         catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)

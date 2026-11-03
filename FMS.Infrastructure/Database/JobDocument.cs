@@ -22,6 +22,11 @@ public class JobDocument: IJob
     public string ToAddress { get; set; } = null!;
     public double DistanceMeters { get; set; }
     public int EstimatedDurationSeconds { get; set; }
+    public string? RoutePolyline { get; set; }
+    public double? OriginLatitude { get; set; }
+    public double? OriginLongitude { get; set; }
+    public double? DestinationLatitude { get; set; }
+    public double? DestinationLongitude { get; set; }
 
     public string Status { get; set; } = "QUEUED";
     public string? AssignedAgvId { get; set; }
@@ -37,6 +42,11 @@ public class JobDocument: IJob
             ToAddress = job.ToAddress,
             DistanceMeters = job.DistanceMeters,
             EstimatedDurationSeconds = job.EstimatedDurationSeconds,
+            RoutePolyline = job.RoutePolyline,
+            OriginLatitude = job.OriginLatitude,
+            OriginLongitude = job.OriginLongitude,
+            DestinationLatitude = job.DestinationLatitude,
+            DestinationLongitude = job.DestinationLongitude,
             Status = job.Status,
             AssignedAgvId = job.AssignedAgvId,
             CreatedAt = job.CreatedAt
@@ -53,6 +63,11 @@ public class JobDocument: IJob
             ToAddress = this.ToAddress,
             DistanceMeters = this.DistanceMeters,
             EstimatedDurationSeconds = this.EstimatedDurationSeconds,
+            RoutePolyline = this.RoutePolyline,
+            OriginLatitude = this.OriginLatitude,
+            OriginLongitude = this.OriginLongitude,
+            DestinationLatitude = this.DestinationLatitude,
+            DestinationLongitude = this.DestinationLongitude,
             Status = this.Status,
             AssignedAgvId = this.AssignedAgvId,
             CreatedAt = this.CreatedAt

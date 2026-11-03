@@ -12,4 +12,9 @@ public class Job : IJob
     public DateTime CreatedAt { get; set; }
     public double DistanceMeters { get; set; }
     public int EstimatedDurationSeconds { get; set; }
+    public string? RoutePolyline { get; set; }
+    public double? OriginLatitude { get; set; }
+    public double? OriginLongitude { get; set; }
+    public double? DestinationLatitude { get; set; }
+    public double? DestinationLongitude { get; set; }
 }

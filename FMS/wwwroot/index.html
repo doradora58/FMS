@@ -1,145 +1,411 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FMS - Fleet Management Dashboard</title>
     <style>
-        body {
+        :root {
+            color-scheme: light;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            max-width: 1100px;
-            margin: 30px auto;
-            padding: 0 20px;
-            background-color: #f9f9f9;
-            color: #333;
+            color: #202b3c;
+            background: #f3f6fa;
         }
 
-        .header-container {
+        * { box-sizing: border-box; }
+
+        body {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 28px 24px 40px;
+        }
+
+        .header, .section-heading, .job-detail-heading {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            justify-content: space-between;
+            gap: 16px;
         }
 
+        .header { margin-bottom: 24px; }
+        h1, h2, p { margin-top: 0; }
+        h1 { margin-bottom: 5px; font-size: 1.65rem; }
+        h2 { margin-bottom: 4px; font-size: 1.12rem; }
+        .subtitle, .muted { color: #64748b; }
+        .subtitle { margin-bottom: 0; }
+
+        .version, .status {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 5px 10px;
+            background: #e7edf5;
+            color: #475569;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(330px, 0.8fr); gap: 18px; }
         .card {
-            background: #fff;
+            min-width: 0;
             padding: 20px;
-            border-radius: 6px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid #e1e8f0;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgb(15 23 42 / 4%);
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
+        .section-heading { margin-bottom: 14px; }
+        .section-heading p { margin-bottom: 0; font-size: 0.88rem; }
+        #map { width: 100%; height: 480px; border-radius: 8px; background: #e8eef5; }
+        .map-message {
+            display: grid;
+            min-height: 480px;
+            place-items: center;
+            padding: 24px;
+            border-radius: 8px;
+            background: #eef3f8;
+            color: #526174;
+            text-align: center;
         }
 
-        th, td {
-            border: 1px solid #e0e0e0;
-            padding: 10px 12px;
-            text-align: left;
-            font-size: 0.9em;
-        }
+        .job-detail { margin-top: 14px; }
+        .job-detail-heading { margin-bottom: 12px; }
+        .job-detail-heading .status { background: #eaf3ff; color: #1d4ed8; }
+        .route-points { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .route-point { min-width: 0; padding: 12px; border-radius: 8px; background: #f6f8fb; }
+        .route-point label { display: block; margin-bottom: 5px; color: #64748b; font-size: 0.78rem; }
+        .route-point div { overflow-wrap: anywhere; font-size: 0.9rem; }
+        .route-metrics { display: flex; gap: 18px; margin-top: 12px; color: #526174; font-size: 0.88rem; }
 
-        th {
-            background-color: #f5f5f5;
-            color: #333;
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+        th, td { padding: 10px 11px; border-bottom: 1px solid #e7edf3; text-align: left; font-size: 0.86rem; }
+        th { color: #64748b; font-weight: 600; }
+        tbody tr:hover, tbody tr.selected { background: #f1f6fc; }
+        .select-job {
+            padding: 0;
+            border: 0;
+            background: none;
+            color: #1d4ed8;
+            font: inherit;
             font-weight: 600;
+            cursor: pointer;
         }
 
-        tr:hover {
-            background-color: #fafafa;
+        .empty { padding: 24px; color: #64748b; text-align: center; }
+        #jobError { color: #b42318; }
+        @media (max-width: 900px) {
+            .layout { grid-template-columns: 1fr; }
+            #map, .map-message { min-height: 360px; height: 360px; }
+        }
+
+        @media (max-width: 560px) {
+            body { padding: 18px 12px 28px; }
+            .header { align-items: flex-start; }
+            h1 { font-size: 1.35rem; }
+            .card { padding: 15px; }
+            .route-points { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <div class="header-container">
+    <header class="header">
         <div>
-            <h1 style="margin: 0; font-size: 1.5em;">🚜 FMS Fleet & Job Monitor</h1>
-            <p style="margin: 5px 0 0 0; color: #666; font-size: 0.9em;">Managing AGV fleet operations and transport jobs.</p>
+            <h1>🚜 FMS Fleet &amp; Job Monitor</h1>
+            <p class="subtitle">ジョブの状態と地図上の配送ルートを確認できます。</p>
         </div>
-        <span id="appVersion" style="font-size: 0.85em; color: #666; background: #eee; padding: 5px 10px; border-radius: 4px;">
-            Version: Loading...
-        </span>
-    </div>
+        <span id="appVersion" class="version">Version: Loading...</span>
+    </header>
 
-    <div class="card">
-        <h2 style="margin-top: 0; font-size: 1.1em;">📋 Active Job Queue</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Job ID</th>
-                    <th>Source Order</th>
-                    <th>From</th>
-                    <th>To</th>
-                    <th>Distance</th>
-                    <th>Est. Duration</th>
-                    <th>Status</th>
-                    <th>Created At</th>
-                </tr>
-            </thead>
-            <tbody id="jobList"></tbody>
-        </table>
-    </div>
+    <main class="layout">
+        <section class="card" aria-labelledby="mapHeading">
+            <div class="section-heading">
+                <div>
+                    <h2 id="mapHeading">配送ルート</h2>
+                    <p class="muted">ジョブを選択するとFrom／Toと経路を表示します。</p>
+                </div>
+            </div>
+            <div id="mapMessage" class="map-message" role="status">地図を読み込んでいます...</div>
+            <div id="map" aria-label="選択したジョブの地図と配送ルート" hidden></div>
+            <div class="job-detail">
+                <div class="job-detail-heading">
+                    <h2 id="selectedJobTitle">ジョブ未選択</h2>
+                    <span id="selectedJobStatus" class="status" hidden></span>
+                </div>
+                <div class="route-points">
+                    <div class="route-point">
+                        <label>From</label>
+                        <div id="selectedFrom" class="muted">ジョブ一覧から選択してください</div>
+                    </div>
+                    <div class="route-point">
+                        <label>To</label>
+                        <div id="selectedTo" class="muted">—</div>
+                    </div>
+                </div>
+                <div class="route-metrics">
+                    <span id="selectedDistance">距離: —</span>
+                    <span id="selectedDuration">所要時間: —</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="card" aria-labelledby="jobsHeading">
+            <div class="section-heading">
+                <div>
+                    <h2 id="jobsHeading">📋 Transport Jobs</h2>
+                    <p class="muted">最新のジョブ状態を3秒ごとに更新します。</p>
+                </div>
+            </div>
+            <p id="jobError" role="alert" hidden></p>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Job ID</th>
+                            <th>Order</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jobList"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
 
     <script>
+        let jobs = [];
+        let selectedJobId = null;
+        let selectedRouteKey = null;
+        let map = null;
+        let routeLine = null;
+        let routeMarkers = [];
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[character]);
+        }
+
         function formatDistance(meters) {
-            if (!meters || meters <= 0) return '-';
-            if (meters >= 1000) {
-                return `${(meters / 1000).toFixed(1)} km`;
-            }
-            return `${Math.round(meters)} m`;
+            if (!meters || meters <= 0) return '—';
+            return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
         }
 
         function formatDuration(seconds) {
-            if (!seconds || seconds <= 0) return '-';
-            const mins = Math.floor(seconds / 60);
-            const hrs = Math.floor(mins / 60);
-            const remainingMins = mins % 60;
+            if (!seconds || seconds <= 0) return '—';
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes} min`;
+        }
 
-            if (hrs > 0) {
-                return `${hrs}h ${remainingMins}m`;
+        function setMapMessage(message) {
+            const mapElement = document.getElementById('map');
+            mapElement.hidden = true;
+            const messageElement = document.getElementById('mapMessage');
+            messageElement.textContent = message;
+            messageElement.hidden = false;
+        }
+
+        function showMap() {
+            document.getElementById('mapMessage').hidden = true;
+            document.getElementById('map').hidden = false;
+        }
+
+        function clearRoute() {
+            if (routeLine) routeLine.setMap(null);
+            routeLine = null;
+            routeMarkers.forEach(marker => marker.setMap(null));
+            routeMarkers = [];
+        }
+
+        function routeKey(job) {
+            return [
+                job.routePolyline,
+                job.originLatitude,
+                job.originLongitude,
+                job.destinationLatitude,
+                job.destinationLongitude
+            ].join('|');
+        }
+
+        function drawRoute(job) {
+            if (!map || !window.google?.maps?.geometry) return;
+            clearRoute();
+
+            if (!job.routePolyline) {
+                setMapMessage('このジョブには表示可能な経路データがありません。ルート検索の完了後に再度選択してください。');
+                return;
             }
-            return `${mins} min`;
+
+            try {
+                const path = google.maps.geometry.encoding.decodePath(job.routePolyline);
+                if (path.length === 0) {
+                    setMapMessage('経路データを地図上に表示できません。');
+                    return;
+                }
+
+                showMap();
+                routeLine = new google.maps.Polyline({
+                    path,
+                    geodesic: true,
+                    strokeColor: '#1769e0',
+                    strokeOpacity: 0.9,
+                    strokeWeight: 5,
+                    map
+                });
+
+                const start = job.originLatitude != null && job.originLongitude != null
+                    ? { lat: job.originLatitude, lng: job.originLongitude }
+                    : path[0].toJSON();
+                const end = job.destinationLatitude != null && job.destinationLongitude != null
+                    ? { lat: job.destinationLatitude, lng: job.destinationLongitude }
+                    : path[path.length - 1].toJSON();
+                const bounds = new google.maps.LatLngBounds();
+                bounds.extend(start);
+                bounds.extend(end);
+                path.forEach(point => bounds.extend(point));
+
+                routeMarkers = [
+                    new google.maps.Marker({ position: start, map, label: 'A', title: `From: ${job.fromAddress}` }),
+                    new google.maps.Marker({ position: end, map, label: 'B', title: `To: ${job.toAddress}` })
+                ];
+                map.fitBounds(bounds, 48);
+            } catch (error) {
+                console.error('Failed to display route:', error);
+                setMapMessage('経路データの読み込みに失敗しました。');
+            }
+        }
+
+        function selectJob(job) {
+            selectedJobId = job.jobId;
+            document.getElementById('selectedJobTitle').textContent = job.jobId;
+            document.getElementById('selectedJobStatus').textContent = job.status;
+            document.getElementById('selectedJobStatus').hidden = false;
+            document.getElementById('selectedFrom').textContent = job.fromAddress || '—';
+            document.getElementById('selectedTo').textContent = job.toAddress || '—';
+            document.getElementById('selectedDistance').textContent = `距離: ${formatDistance(job.distanceMeters)}`;
+            document.getElementById('selectedDuration').textContent = `所要時間: ${formatDuration(job.estimatedDurationSeconds)}`;
+            document.querySelectorAll('[data-job-id]').forEach(row => {
+                row.classList.toggle('selected', row.dataset.jobId === selectedJobId);
+            });
+
+            const nextRouteKey = routeKey(job);
+            if (selectedRouteKey !== nextRouteKey) {
+                selectedRouteKey = nextRouteKey;
+                drawRoute(job);
+            }
+        }
+
+        function renderJobs() {
+            const list = document.getElementById('jobList');
+            if (jobs.length === 0) {
+                list.innerHTML = '<tr><td class="empty" colspan="5">ジョブはありません</td></tr>';
+                return;
+            }
+
+            list.innerHTML = [...jobs].reverse().map(job => `
+                <tr data-job-id="${escapeHtml(job.jobId)}" class="${job.jobId === selectedJobId ? 'selected' : ''}">
+                    <td><button class="select-job" type="button" data-job-id="${escapeHtml(job.jobId)}">${escapeHtml(job.jobId)}</button></td>
+                    <td>${escapeHtml(job.sourceOrderId)}</td>
+                    <td>${escapeHtml(job.fromAddress)}</td>
+                    <td>${escapeHtml(job.toAddress)}</td>
+                    <td>${escapeHtml(job.status)}</td>
+                </tr>
+            `).join('');
+
+            const selectedJob = jobs.find(job => job.jobId === selectedJobId);
+            if (selectedJob) selectJob(selectedJob);
+            else if (!selectedJobId) selectJob(jobs[jobs.length - 1]);
         }
 
         async function fetchVersion() {
             try {
-                const res = await fetch('/api/version');
-                const data = await res.json();
+                const response = await fetch('/api/version');
+                if (!response.ok) throw new Error(`Version request failed: ${response.status}`);
+                const data = await response.json();
                 document.getElementById('appVersion').textContent = `Version: ${data.version}`;
-            } catch (err) {
-                console.error("Failed to fetch version:", err);
-                document.getElementById('appVersion').textContent = "Version: unknown";
+            } catch (error) {
+                console.error('Failed to fetch version:', error);
+                document.getElementById('appVersion').textContent = 'Version: unknown';
             }
         }
 
         async function fetchJobs() {
+            const errorElement = document.getElementById('jobError');
             try {
-                const res = await fetch('/api/transportjob');
-                const jobs = await res.json();
-                const tbody = document.getElementById('jobList');
-
-                tbody.innerHTML = jobs.map(j => `
-                        <tr>
-                            <td><strong>${j.jobId}</strong></td>
-                            <td>${j.sourceOrderId}</td>
-                            <td>${j.fromAddress}</td>
-                            <td>${j.toAddress}</td>
-                            <td>${formatDistance(j.distanceMeters)}</td>
-                            <td>${formatDuration(j.estimatedDurationSeconds)}</td>
-                            <td>${j.status}</td>
-                            <td>${new Date(j.createdAt).toLocaleString()}</td>
-                        </tr>
-                    `).reverse().join('');
-            } catch (err) {
-                console.error("Failed to fetch jobs:", err);
+                const response = await fetch('/api/transportjob');
+                if (!response.ok) throw new Error(`Job request failed: ${response.status}`);
+                jobs = await response.json();
+                errorElement.hidden = true;
+                renderJobs();
+            } catch (error) {
+                console.error('Failed to fetch jobs:', error);
+                errorElement.textContent = 'ジョブ一覧を取得できませんでした。';
+                errorElement.hidden = false;
             }
         }
 
+        async function configureMap() {
+            try {
+                const response = await fetch('/api/maps/config');
+                if (!response.ok) throw new Error(`Map configuration request failed: ${response.status}`);
+                const configuration = await response.json();
+                if (!configuration.configured) {
+                    setMapMessage('Google Mapsを表示するには、GoogleMaps:JavaScriptApiKeyを設定してください。');
+                    return;
+                }
+
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(configuration.apiKey)}&callback=initJobMap&loading=async&libraries=geometry`;
+                script.async = true;
+                script.onerror = () => setMapMessage('Google Maps JavaScript APIを読み込めませんでした。APIキーと通信設定を確認してください。');
+                document.head.appendChild(script);
+            } catch (error) {
+                console.error('Failed to configure map:', error);
+                setMapMessage('地図設定を取得できませんでした。');
+            }
+        }
+
+        window.initJobMap = () => {
+            showMap();
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 0, lng: 0 },
+                zoom: 2,
+                mapTypeControl: false,
+                streetViewControl: false
+            });
+            showMap();
+            if (selectedJobId) {
+                const selectedJob = jobs.find(job => job.jobId === selectedJobId);
+                if (selectedJob) {
+                    selectedRouteKey = null;
+                    selectJob(selectedJob);
+                }
+            }
+        };
+
+        window.gm_authFailure = () => {
+            setMapMessage('Google Mapsの認証に失敗しました。ブラウザー用APIキーと許可された参照元を確認してください。');
+        };
+
+        document.getElementById('jobList').addEventListener('click', event => {
+            const button = event.target.closest('button[data-job-id]');
+            if (!button) return;
+            const job = jobs.find(item => item.jobId === button.dataset.jobId);
+            if (job) selectJob(job);
+        });
+
         fetchVersion();
-        setInterval(fetchJobs, 3000);
         fetchJobs();
+        configureMap();
+        setInterval(fetchJobs, 3000);
     </script>
 </body>
 </html>

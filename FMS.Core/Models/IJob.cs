@@ -17,4 +17,9 @@ public interface IJob
     DateTime CreatedAt { get; set; }
     double DistanceMeters { get; set; }
     int EstimatedDurationSeconds { get; set; }
+    string? RoutePolyline { get; set; }
+    double? OriginLatitude { get; set; }
+    double? OriginLongitude { get; set; }
+    double? DestinationLatitude { get; set; }
+    double? DestinationLongitude { get; set; }
 }
