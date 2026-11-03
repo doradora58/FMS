@@ -1,0 +1,137 @@
+@startuml FMS_Current_Class_Diagram
+title FMS - Implemented Source Class Diagram
+left to right direction
+skinparam classAttributeIconSize 0
+
+package "FMS.Controllers" {
+  class TransportJobController {
+    +Create(req): Task<IActionResult>
+    +GetAll(): Task<ActionResult<IEnumerable<Job>>>
+    +GetById(jobId): Task<IActionResult>
+  }
+}
+
+package "FMS.Facade" {
+  interface ITransportJobFacade {
+    +CreateTransportJobAsync(req): Task<IJob>
+    +GetAllJobsAsync(): Task<IEnumerable<IJob>>
+    +GetJobAsync(jobId): Task<IJob?>
+    +ProgressJobAsync(jobId, trigger): Task
+  }
+  class TransportJobFacade {
+    +CreateTransportJobAsync(req): Task<IJob>
+    +GetAllJobsAsync(): Task<IEnumerable<IJob>>
+    +GetJobAsync(jobId): Task<IJob?>
+    +ProgressJobAsync(jobId, trigger): Task
+  }
+}
+
+package "FMS.JobManagement.Services" {
+  interface IJobManagement
+  class JobManagement {
+    +CreateAndSaveJobAsync(...): Task<IJob>
+    +TransitionStatusAsync(jobId, trigger): Task
+    +GetAllJobsAsync(): Task<IEnumerable<IJob>>
+    +GetJobAsync(jobId): Task<IJob?>
+  }
+}
+
+package "FMS.JobManagement.StateMachine" {
+  class JobStateMachine {
+    +CurrentState: JobStatus
+    +Fire(trigger): void
+    +CanFire(trigger): bool
+  }
+}
+
+package "FMS.JobManagement.Models" {
+  class Job
+  enum JobStatus {
+    Queued
+    Assigned
+    InTransit
+    Completed
+    Failed
+    Cancelled
+  }
+  enum JobTrigger {
+    AssignAgv
+    StartMoving
+    Complete
+    Fail
+    Cancel
+  }
+}
+
+package "FMS.Core" {
+  interface IJob {
+    +JobId: string
+    +SourceOrderId: string
+    +Status: string
+  }
+  interface ITransportJobRepository {
+    +AddAsync(job): Task
+    +GetAsync(jobId): Task<IJob?>
+    +GetAllAsync(): Task<IEnumerable<IJob>>
+    +UpdateAsync(job): Task
+  }
+  interface IMessagePublisher {
+    +PublishJobStatusAsync(jobEvent): Task
+  }
+  interface IRoutingService
+  interface IJobFactory {
+    +Create(orderId, fromAddress, toAddress, distance, duration): IJob
+  }
+  class TransportJobRequest
+  class JobStatusEvent
+  class JobFactory
+}
+
+package "FMS.Infrastructure (Production)" {
+  class MongoTransportJobRepository
+  class JobDocument
+  class RabbitMqPublisher
+  class GoogleMapsRoutingService
+}
+
+package "FMS.Infrastructure (Development)" {
+  class MockTransportJobRepository
+  class MockMessagePublisher
+  class MockRoutingService
+}
+
+TransportJobController --> ITransportJobFacade
+TransportJobFacade ..|> ITransportJobFacade
+TransportJobFacade --> IJobManagement
+TransportJobFacade --> IRoutingService
+TransportJobFacade ..> TransportJobRequest
+
+JobManagement ..|> IJobManagement
+JobManagement --> ITransportJobRepository
+JobManagement --> IJobFactory
+JobManagement --> IMessagePublisher
+JobManagement --> JobStateMachine
+JobManagement ..> JobStatusEvent
+
+JobStateMachine --> JobStatus
+JobStateMachine --> JobTrigger
+JobFactory ..|> IJobFactory
+JobFactory ..> Job
+Job ..|> IJob
+JobDocument ..|> IJob
+JobDocument ..> Job : ToDomain / FromDomain
+
+MongoTransportJobRepository ..|> ITransportJobRepository
+MongoTransportJobRepository --> JobDocument
+RabbitMqPublisher ..|> IMessagePublisher
+GoogleMapsRoutingService ..|> IRoutingService
+
+MockTransportJobRepository ..|> ITransportJobRepository
+MockMessagePublisher ..|> IMessagePublisher
+MockRoutingService ..|> IRoutingService
+
+note bottom of JobManagement
+  Saves the job first, then publishes
+  JobStatusEvent. No transactional Outbox.
+end note
+@enduml

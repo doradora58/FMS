@@ -1,0 +1,29 @@
+@startuml FMS_Get_Transport_Job
+title Get Transport Job by ID
+
+actor "API Client" as Client
+participant "TransportJobController" as Controller
+participant "TransportJobFacade" as Facade
+participant "JobManagement" as Management
+participant "ITransportJobRepository\n(MongoDB or mock)" as Repository
+database "MongoDB\nFmsDb.Jobs" as Mongo
+
+Client -> Controller : GET /api/transportjob/{jobId}
+Controller -> Facade : GetJobAsync(jobId)
+Facade -> Management : GetJobAsync(jobId)
+Management -> Repository : GetAsync(jobId)
+alt Production
+  Repository -> Mongo : Find by JobId
+  Mongo --> Repository : JobDocument or null
+else Development
+  Repository -> Repository : Find in in-memory jobs
+end
+Repository --> Management : job or null
+Management --> Facade : job or null
+Facade --> Controller : job or null
+alt Job found
+  Controller --> Client : 200 OK with job
+else Job not found
+  Controller --> Client : 404 Not Found
+end
+@enduml

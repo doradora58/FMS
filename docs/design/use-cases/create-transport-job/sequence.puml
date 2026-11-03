@@ -1,0 +1,46 @@
+@startuml FMS_Create_Transport_Job
+title Create Transport Job
+
+actor "API Client" as Client
+participant "TransportJobController" as Controller
+participant "TransportJobFacade" as Facade
+participant "IRoutingService\n(Google Maps or mock)" as Routing
+participant "JobManagement" as Management
+participant "JobFactory" as Factory
+participant "ITransportJobRepository\n(MongoDB or mock)" as Repository
+participant "IMessagePublisher\n(RabbitMQ or mock)" as Publisher
+database "MongoDB\nFmsDb.Jobs" as Mongo
+queue "RabbitMQ\njob-status-queue" as Rabbit
+
+Client -> Controller : POST /api/transportjob/create\nTransportJobRequest
+Controller -> Facade : CreateTransportJobAsync(request)
+Facade -> Routing : GetRouteAsync(fromAddress, toAddress)
+Routing --> Facade : RouteInfo(distance, duration)
+Facade -> Management : CreateAndSaveJobAsync(orderId, addresses, route)
+Management -> Factory : Create(orderId, addresses, route)
+Factory --> Management : Job(status = Queued)
+Management -> Repository : AddAsync(job)
+alt Production
+  Repository -> Mongo : Insert JobDocument
+  Mongo --> Repository : insert result
+else Development
+  Repository -> Repository : Store job in memory
+end
+Repository --> Management : complete
+Management -> Publisher : PublishJobStatusAsync(Queued)
+alt Production
+  Publisher -> Rabbit : Publish JobStatusEvent
+  Rabbit --> Publisher : publish call completes
+else Development
+  Publisher -> Publisher : Log mock event
+end
+Publisher --> Management : complete
+Management --> Facade : job
+Facade --> Controller : job
+Controller --> Client : 200 OK\n{ message, jobId, orderId }
+
+note over Repository,Publisher
+  Job persistence and event publishing are separate operations.
+  A publish failure occurs after the job has been saved.
+end note
+@enduml

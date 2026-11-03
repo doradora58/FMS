@@ -1,0 +1,25 @@
+@startuml FMS_List_Transport_Jobs
+title List Transport Jobs
+
+actor "API Client" as Client
+participant "TransportJobController" as Controller
+participant "TransportJobFacade" as Facade
+participant "JobManagement" as Management
+participant "ITransportJobRepository\n(MongoDB or mock)" as Repository
+database "MongoDB\nFmsDb.Jobs" as Mongo
+
+Client -> Controller : GET /api/transportjob
+Controller -> Facade : GetAllJobsAsync()
+Facade -> Management : GetAllJobsAsync()
+Management -> Repository : GetAllAsync()
+alt Production
+  Repository -> Mongo : Find all Jobs
+  Mongo --> Repository : JobDocuments
+else Development
+  Repository -> Repository : Read in-memory jobs
+end
+Repository --> Management : jobs
+Management --> Facade : jobs
+Facade --> Controller : jobs
+Controller --> Client : 200 OK with jobs
+@enduml
