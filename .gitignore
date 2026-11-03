@@ -26,3 +26,5 @@ appsettings.Development.json
 ## Docker / Temporary files
 docker-compose.override.yml
 *.log
+.vscode/settings.json
+.vscode/extensions.json
