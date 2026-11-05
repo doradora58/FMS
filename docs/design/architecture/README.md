@@ -43,6 +43,11 @@ parsing. Production starts an MQTT background receiver that subscribes to
 `uagv/v2/+/+/connection`. The vehicle list is exposed at `GET /api/vehicles`
 and the dashboard refreshes its Google Maps markers every three seconds.
 Development uses a sample vehicle marker and does not require an MQTT broker.
+The development MQTT receiver can be enabled explicitly with
+`Vda5050__Enabled=true` when a broker is available.
+When the browser Maps API key is absent in Development, the dashboard displays
+a lightweight mock-map panel with an animated vehicle icon instead of hiding
+the vehicle data behind the Google Maps configuration message.
 
 VDA 5050 2.0.0 position coordinates are normally map-local `x`/`y`; they are
 not Google Maps coordinates. This initial integration expects the vehicle

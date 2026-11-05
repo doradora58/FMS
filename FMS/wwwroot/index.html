@@ -58,6 +58,74 @@
         .section-heading { margin-bottom: 14px; }
         .section-heading p { margin-bottom: 0; font-size: 0.88rem; }
         #map { width: 100%; height: 480px; border-radius: 8px; background: #e8eef5; }
+        .mock-map {
+            position: relative;
+            height: 480px;
+            overflow: hidden;
+            border: 1px solid #d5e0e8;
+            border-radius: 8px;
+            background-color: #e8eee6;
+            background-image:
+                linear-gradient(28deg, transparent 46%, #fff 46%, #fff 49%, #d8dfe5 49%, #d8dfe5 50%, #fff 50%, #fff 53%, transparent 53%),
+                linear-gradient(112deg, transparent 37%, #fff 37%, #fff 40%, #d8dfe5 40%, #d8dfe5 41%, #fff 41%, #fff 44%, transparent 44%),
+                linear-gradient(90deg, transparent 74%, #fff 74%, #fff 77%, #d8dfe5 77%, #d8dfe5 78%, #fff 78%, #fff 81%, transparent 81%),
+                repeating-linear-gradient(0deg, transparent 0 54px, rgb(255 255 255 / 55%) 55px 57px, transparent 58px 90px),
+                repeating-linear-gradient(90deg, transparent 0 74px, rgb(255 255 255 / 55%) 75px 77px, transparent 78px 116px);
+        }
+        .mock-map[hidden] { display: none; }
+        .mock-map-badge {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            padding: 7px 10px;
+            border-radius: 6px;
+            background: rgb(255 255 255 / 92%);
+            color: #475569;
+            font-size: 0.8rem;
+            box-shadow: 0 1px 5px rgb(15 23 42 / 15%);
+        }
+        .mock-vehicle {
+            position: absolute;
+            display: grid;
+            justify-items: center;
+            gap: 3px;
+            transform: translate(-50%, -50%);
+            animation: vehicle-bob 1.8s ease-in-out infinite;
+        }
+        .mock-vehicle-icon {
+            display: grid;
+            width: 42px;
+            height: 42px;
+            place-items: center;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            background: #16a34a;
+            font-size: 22px;
+            box-shadow: 0 2px 8px rgb(15 23 42 / 28%);
+        }
+        .mock-vehicle.offline .mock-vehicle-icon { background: #64748b; }
+        .mock-vehicle-label {
+            padding: 3px 7px;
+            border-radius: 4px;
+            background: #fff;
+            color: #202b3c;
+            font-size: 0.75rem;
+            font-weight: 700;
+            white-space: nowrap;
+            box-shadow: 0 1px 4px rgb(15 23 42 / 18%);
+        }
+        .mock-map-empty {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            color: #526174;
+            text-align: center;
+        }
+        @keyframes vehicle-bob {
+            0%, 100% { margin-top: 0; }
+            50% { margin-top: -5px; }
+        }
         .map-message {
             display: grid;
             min-height: 480px;
@@ -98,7 +166,7 @@
         #jobError { color: #b42318; }
         @media (max-width: 900px) {
             .layout { grid-template-columns: 1fr; }
-            #map, .map-message { min-height: 360px; height: 360px; }
+            #map, .map-message, .mock-map { min-height: 360px; height: 360px; }
         }
 
         @media (max-width: 560px) {
@@ -129,6 +197,10 @@
             </div>
             <div id="mapMessage" class="map-message" role="status">地図を読み込んでいます...</div>
             <div id="map" aria-label="選択したジョブの地図と配送ルート" hidden></div>
+            <div id="mockMap" class="mock-map" aria-label="開発用の簡易地図" hidden>
+                <div class="mock-map-badge">開発用モックマップ</div>
+                <div id="mockVehicleMarkers"></div>
+            </div>
             <p id="vehicleError" class="muted" role="alert" hidden></p>
             <div class="job-detail">
                 <div class="job-detail-heading">
@@ -220,7 +292,95 @@
 
         function showMap() {
             document.getElementById('mapMessage').hidden = true;
+            document.getElementById('mockMap').hidden = true;
             document.getElementById('map').hidden = false;
+        }
+
+        function showMockMap() {
+            document.getElementById('mapMessage').hidden = true;
+            document.getElementById('map').hidden = true;
+            document.getElementById('mockMap').hidden = false;
+            renderMockVehicleMarkers();
+        }
+
+        function updateVehicleMarkers() {
+            const positionedVehicles = vehicles.filter(vehicle =>
+                vehicle.position &&
+                Number.isFinite(vehicle.position.latitude) &&
+                Number.isFinite(vehicle.position.longitude));
+            const activeIds = new Set(positionedVehicles.map(vehicle =>
+                `${vehicle.manufacturer}/${vehicle.serialNumber}`));
+
+            for (const [id, marker] of vehicleMarkers) {
+                if (!activeIds.has(id)) {
+                    marker.setMap(null);
+                    vehicleMarkers.delete(id);
+                }
+            }
+
+            if (map && window.google?.maps) {
+                const bounds = new google.maps.LatLngBounds();
+                positionedVehicles.forEach(vehicle => {
+                    const id = `${vehicle.manufacturer}/${vehicle.serialNumber}`;
+                    const position = {
+                        lat: vehicle.position.latitude,
+                        lng: vehicle.position.longitude
+                    };
+                    const online = vehicle.connectionState === 'Online';
+                    let marker = vehicleMarkers.get(id);
+                    if (!marker) {
+                        marker = new google.maps.Marker({ map, position });
+                        vehicleMarkers.set(id, marker);
+                    }
+                    marker.setPosition(position);
+                    marker.setTitle(`${id} (${vehicle.connectionState})`);
+                    marker.setIcon({
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 18,
+                        fillColor: online ? '#16a34a' : '#64748b',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 3
+                    });
+                    marker.setLabel({ text: '🚜', fontSize: '18px' });
+                    bounds.extend(position);
+                });
+
+                if (positionedVehicles.length > 0) {
+                    showMap();
+                    if (!hasCenteredOnVehicles) {
+                        map.fitBounds(bounds, 48);
+                        hasCenteredOnVehicles = true;
+                    }
+                }
+            }
+
+            renderMockVehicleMarkers();
+        }
+
+        function renderMockVehicleMarkers() {
+            const container = document.getElementById('mockVehicleMarkers');
+            if (!container || document.getElementById('mockMap').hidden) return;
+            const positionedVehicles = vehicles.filter(vehicle =>
+                vehicle.position &&
+                Number.isFinite(vehicle.position.latitude) &&
+                Number.isFinite(vehicle.position.longitude));
+
+            if (positionedVehicles.length === 0) {
+                container.innerHTML = '<div class="mock-map-empty">位置情報を持つ車両はありません</div>';
+                return;
+            }
+
+            container.innerHTML = positionedVehicles.map((vehicle, index) => {
+                const column = 32 + (index % 4) * 12;
+                const row = 38 + (Math.floor(index / 4) % 3) * 18;
+                const label = escapeHtml(`${vehicle.manufacturer}/${vehicle.serialNumber}`);
+                const offline = vehicle.connectionState !== 'Online' ? ' offline' : '';
+                return `<div class="mock-vehicle${offline}" style="left:${column}%;top:${row}%" title="${label} (${escapeHtml(vehicle.connectionState)})">
+                    <span class="mock-vehicle-icon" aria-hidden="true">🚜</span>
+                    <span class="mock-vehicle-label">${label}</span>
+                </div>`;
+            }).join('');
         }
 
         function clearRoute() {
@@ -255,59 +415,6 @@
                 if (path.length === 0) {
                     setMapMessage('経路データを地図上に表示できません。');
                     return;
-                }
-
-                function updateVehicleMarkers() {
-                    if (!map || !window.google?.maps) return;
-
-                    const positionedVehicles = vehicles.filter(vehicle =>
-                        vehicle.position &&
-                        Number.isFinite(vehicle.position.latitude) &&
-                        Number.isFinite(vehicle.position.longitude));
-                    const activeIds = new Set(positionedVehicles.map(vehicle =>
-                        `${vehicle.manufacturer}/${vehicle.serialNumber}`));
-
-                    for (const [id, marker] of vehicleMarkers) {
-                        if (!activeIds.has(id)) {
-                            marker.setMap(null);
-                            vehicleMarkers.delete(id);
-                        }
-                    }
-
-                    const bounds = new google.maps.LatLngBounds();
-                    positionedVehicles.forEach(vehicle => {
-                        const id = `${vehicle.manufacturer}/${vehicle.serialNumber}`;
-                        const position = {
-                            lat: vehicle.position.latitude,
-                            lng: vehicle.position.longitude
-                        };
-                        const online = vehicle.connectionState === 'Online';
-                        let marker = vehicleMarkers.get(id);
-                        if (!marker) {
-                            marker = new google.maps.Marker({ map, position });
-                            vehicleMarkers.set(id, marker);
-                        }
-                        marker.setPosition(position);
-                        marker.setTitle(`${id} (${vehicle.connectionState})`);
-                        marker.setIcon({
-                            path: google.maps.SymbolPath.CIRCLE,
-                            scale: 9,
-                            fillColor: online ? '#16a34a' : '#64748b',
-                            fillOpacity: 1,
-                            strokeColor: '#ffffff',
-                            strokeWeight: 2
-                        });
-                        marker.setLabel({ text: 'V', color: '#ffffff', fontWeight: '700' });
-                        bounds.extend(position);
-                    });
-
-                    if (positionedVehicles.length > 0) {
-                        showMap();
-                        if (!hasCenteredOnVehicles) {
-                            map.fitBounds(bounds, 48);
-                            hasCenteredOnVehicles = true;
-                        }
-                    }
                 }
 
                 showMap();
@@ -432,7 +539,11 @@
                 if (!response.ok) throw new Error(`Map configuration request failed: ${response.status}`);
                 const configuration = await response.json();
                 if (!configuration.configured) {
-                    setMapMessage('Google Mapsを表示するには、GoogleMaps:JavaScriptApiKeyを設定してください。');
+                    if (configuration.isDevelopment) {
+                        showMockMap();
+                    } else {
+                        setMapMessage('Google Mapsを表示するには、GoogleMaps:JavaScriptApiKeyを設定してください。');
+                    }
                     return;
                 }
 

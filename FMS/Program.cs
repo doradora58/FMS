@@ -52,6 +52,11 @@ builder.Services.AddScoped<ITransportJobFacade, TransportJobFacade>();
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddInfrastructureMockServices();
+    if (builder.Configuration.GetValue<bool>("Vda5050:Enabled"))
+    {
+        builder.Services.AddVda5050MqttReceiver();
+    }
+
     Console.WriteLine("----------------------------------------");
     Console.WriteLine("[Mode] Running with MOCK implementations");
     Console.WriteLine("----------------------------------------");
@@ -92,12 +97,15 @@ app.MapGet("/api/version", () =>
     return Results.Ok(new { version });
 });
 
-app.MapGet("/api/maps/config", (IConfiguration configuration) =>
+app.MapGet("/api/maps/config", (IConfiguration configuration, IWebHostEnvironment environment) =>
 {
     var apiKey = configuration["GoogleMaps:JavaScriptApiKey"];
-    return string.IsNullOrWhiteSpace(apiKey)
-        ? Results.Ok(new { configured = false })
-        : Results.Ok(new { configured = true, apiKey });
+    return Results.Ok(new
+    {
+        configured = !string.IsNullOrWhiteSpace(apiKey),
+        isDevelopment = environment.IsDevelopment(),
+        apiKey
+    });
 });
 
 app.MapGet("/api/vehicles", (IVehicleRegistry vehicleRegistry) =>

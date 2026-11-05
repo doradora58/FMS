@@ -20,7 +20,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
         services.AddSingleton<IVehicleRegistry, InMemoryVehicleRegistry>();
-        services.AddHostedService<Vda5050MqttReceiver>();
+        services.AddVda5050MqttReceiver();
 
         // RabbitMQ
         services.AddSingleton<IRabbitMqConnectionFactory, RabbitMqConnectionFactory>();
@@ -65,6 +65,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IRoutingServiceFactory, MockRoutingServiceFactory>();
         services.AddScoped<IRoutingService, MockRoutingService>();
 
+        return services;
+    }
+
+    public static IServiceCollection AddVda5050MqttReceiver(this IServiceCollection services)
+    {
+        services.AddHostedService<Vda5050MqttReceiver>();
         return services;
     }
 
