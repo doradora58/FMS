@@ -10,6 +10,7 @@ using FMS.JobManagement;
 using FMS.JobManagement.Commands;
 using FMS.JobManagement.Handlers;
 using FMS.JobManagement.Services;
+using FMS.JobManagement.Telemetry;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Extensions.DiagnosticSources;
 using OpenTelemetry.Metrics;
@@ -26,6 +27,7 @@ builder.Services.AddOpenTelemetry()
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddSource("Fms.Api.Messaging")
+        .AddSource(JobActivity.SourceName)
         .AddSource("MongoDB.Driver.Core.Extensions.DiagnosticSources")
         .AddOtlpExporter(opts =>
         {

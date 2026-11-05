@@ -1,5 +1,7 @@
 using System.Threading.Channels;
+using System.Diagnostics;
 using FMS.JobManagement.Commands;
+using FMS.JobManagement.Telemetry;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -26,6 +28,27 @@ public sealed class InMemoryJobCreationQueue(
         {
             try
             {
+                var parentContext = default(ActivityContext);
+                if (!string.IsNullOrWhiteSpace(command.TraceParent) &&
+                    !ActivityContext.TryParse(
+                        command.TraceParent,
+                        command.TraceState,
+                        isRemote: true,
+                        out parentContext))
+                {
+                    throw new FormatException(
+                        $"Invalid trace context on create command for job {command.JobId}.");
+                }
+
+                using var activity = JobActivity.Source.StartActivity(
+                    "job.create.process",
+                    ActivityKind.Consumer,
+                    parentContext);
+                activity?.SetTag("job.id", command.JobId);
+                activity?.SetTag("order.id", command.OrderId);
+                activity?.SetTag("messaging.system", "in-memory");
+                activity?.SetTag("messaging.operation.type", "process");
+
                 await executor.ExecuteAsync<CreateTransportJobCommand, Unit>(command, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)

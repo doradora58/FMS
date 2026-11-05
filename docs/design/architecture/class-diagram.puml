@@ -37,6 +37,7 @@ package "FMS.JobManagement.Commands" {
   }
   class CommandExecutor
   class CreateTransportJobCommand
+  class JobActivity <<ActivitySource>>
   class TransitionJobStatusCommand
   interface ICommandQueue<TCommand>
   interface ICommandValidator<TCommand>
@@ -145,13 +146,16 @@ CommandExecutor --> ICommandHandler : resolve and execute
 CommandExecutor --> ICommandQueue : enqueue command
 CreateTransportJobCommandValidator ..|> ICommandValidator
 CreateTransportJobCommandValidator ..> CreateTransportJobCommand
+InMemoryJobCreationQueue ..> JobActivity : restore trace context
 CreateTransportJobCommandHandler ..|> ICommandHandler
+CreateTransportJobCommandHandler ..> JobActivity : create job spans
 CreateTransportJobCommandHandler --> ITransportJobRepository
 CreateTransportJobCommandHandler --> IJobFactory
 CreateTransportJobCommandHandler --> IRoutingService
 CreateTransportJobCommandHandler --> IMessagePublisher
 CreateTransportJobCommandHandler ..> JobStatusEvent
 TransitionJobStatusCommandHandler ..|> ICommandHandler
+TransitionJobStatusCommandHandler ..> JobActivity : create transition spans
 TransitionJobStatusCommandHandler --> ITransportJobRepository
 TransitionJobStatusCommandHandler --> IMessagePublisher
 TransitionJobStatusCommandHandler --> JobStateMachine
@@ -170,6 +174,7 @@ JobDocument ..> Job : ToDomain / FromDomain
 MongoTransportJobRepository ..|> ITransportJobRepository
 MongoTransportJobRepository --> JobDocument
 RabbitMqPublisher ..|> IMessagePublisher
+RabbitMqPublisher ..> Activity : inject traceparent / tracestate
 GoogleMapsRoutingService ..|> IRoutingService
 GoogleMapsRoutingService ..> RouteInfo : returns route geometry
 

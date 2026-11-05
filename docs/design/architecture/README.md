@@ -20,6 +20,13 @@ dropped, and a job already inserted as `Routing` can remain in that state; no
 automatic retry is configured. A route-calculation error is persisted as
 `Failed`.
 
+The create command captures the incoming W3C `traceparent` and `tracestate`
+before the HTTP response completes. The background worker restores that parent
+context, so job creation, database operations, route calculation, and the
+status-event publish are spans in the originating request trace. Job-related
+spans include `job.id`; RabbitMQ status events carry W3C trace headers for
+downstream consumers.
+
 Since background processing creates the job, `GET /api/transportjob/{jobId}`
 can temporarily return `404` after the `202 Accepted` response until insertion
 completes. Job persistence and status-event publishing are not atomic; there

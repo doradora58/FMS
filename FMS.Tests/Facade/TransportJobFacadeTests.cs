@@ -3,6 +3,7 @@ using FMS.Facade;
 using FMS.JobManagement.Commands;
 using FMS.JobManagement.Services;
 using NSubstitute;
+using System.Diagnostics;
 
 namespace FMS.Tests.Facade;
 
@@ -67,5 +68,30 @@ public class TransportJobFacadeTests
 
         // Assert
         Assert.Contains("FromAddress", exception.Errors.Keys);
+    }
+
+    [Fact]
+    public async Task GivenActiveRequestTraceWhenCreateCommandIsBuiltThenCopiesTraceContext()
+    {
+        // Arrange
+        using var requestActivity = new Activity("POST /api/transportjob/create")
+            .SetIdFormat(ActivityIdFormat.W3C)
+            .Start();
+        var facade = new TransportJobFacade(
+            Substitute.For<ICommandExecutor>(),
+            new CreateTransportJobCommandValidator(),
+            Substitute.For<IJobQueries>());
+        var request = new TransportJobRequest
+        {
+            OrderId = "ORDER-456",
+            FromAddress = "A",
+            ToAddress = "B"
+        };
+
+        // Act
+        var command = await facade.CreateTransportJobAsync(request);
+
+        // Assert
+        Assert.Equal(requestActivity!.Id, command.TraceParent);
     }
 }

@@ -11,6 +11,7 @@ participant "InMemoryJobCreationQueue\n(BackgroundService)" as CommandQueue
 Client -> Controller : POST /api/transportjob/create\nTransportJobRequest
 Controller -> Facade : CreateTransportJobAsync(request)
 Facade -> Facade : Create command with new JobId
+Facade -> Facade : Capture Activity.Current traceparent/tracestate
 Facade -> Validator : Validate(command)
 alt Validation fails
   Validator --> Facade : field errors
@@ -64,7 +65,7 @@ else New job or existing Routing job
     Handler -> Repository : Update status = Failed
   end
   Handler -> StatusPublisher : PublishJobStatusAsync(new status)
-  StatusPublisher -> StatusQueue : Publish external JobStatusEvent
+  StatusPublisher -> StatusQueue : Publish external JobStatusEvent\nwith traceparent/tracestate
   StatusQueue --> StatusPublisher : publish call completes
   StatusPublisher --> Handler : complete
 end
@@ -82,5 +83,6 @@ note over Controller,CommandQueue
   Command execution starts only from the response-completed callback.
   The command queue is in memory, not RabbitMQ or durable storage.
   A process failure after 202 can lose a queued or not-yet-enqueued command.
+  The worker continues the captured W3C trace; job spans carry job.id.
 end note
 @enduml

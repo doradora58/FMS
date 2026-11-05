@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using FMS.Core.Models;
 using FMS.Core.Repositories;
 using FMS.JobManagement.Commands;
 using FMS.JobManagement.Models;
 using FMS.JobManagement.StateMachine;
+using FMS.JobManagement.Telemetry;
 
 namespace FMS.JobManagement.Handlers;
 
@@ -15,6 +17,10 @@ public sealed class TransitionJobStatusCommandHandler(
         TransitionJobStatusCommand command,
         CancellationToken cancellationToken = default)
     {
+        using var activity = JobActivity.Source.StartActivity("job.status.transition");
+        activity?.SetTag("job.id", command.JobId);
+        activity?.SetTag("job.trigger", command.Trigger.ToString());
+
         var job = await jobRepository.GetAsync(command.JobId)
             ?? throw new KeyNotFoundException($"Job {command.JobId} not found.");
 
@@ -32,12 +38,24 @@ public sealed class TransitionJobStatusCommandHandler(
         machine.Fire(command.Trigger);
 
         job.Status = machine.CurrentState.ToString();
-        await jobRepository.UpdateAsync(job);
-        await messagePublisher.PublishJobStatusAsync(new JobStatusEvent(
-            job.JobId,
-            job.SourceOrderId,
-            job.Status,
-            DateTime.UtcNow));
+        using (var updateActivity = JobActivity.Source.StartActivity("job.persist"))
+        {
+            updateActivity?.SetTag("job.id", job.JobId);
+            updateActivity?.SetTag("job.status", job.Status);
+            await jobRepository.UpdateAsync(job);
+        }
+
+        using (var publishActivity = JobActivity.Source.StartActivity("job.status.publish"))
+        {
+            publishActivity?.SetTag("job.id", job.JobId);
+            publishActivity?.SetTag("job.status", job.Status);
+            activity?.SetTag("job.status", job.Status);
+            await messagePublisher.PublishJobStatusAsync(new JobStatusEvent(
+                job.JobId,
+                job.SourceOrderId,
+                job.Status,
+                DateTime.UtcNow));
+        }
 
         return Unit.Value;
     }

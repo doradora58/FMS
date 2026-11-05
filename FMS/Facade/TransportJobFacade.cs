@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using FMS.Core.Models;
 using FMS.JobManagement;
 using FMS.JobManagement.Commands;
@@ -19,7 +20,11 @@ public class TransportJobFacade(
             $"JOB-{Guid.NewGuid():N}".ToUpperInvariant(),
             req.OrderId,
             req.FromAddress,
-            req.ToAddress);
+            req.ToAddress)
+        {
+            TraceParent = Activity.Current?.Id,
+            TraceState = Activity.Current?.TraceStateString
+        };
 
         var errors = createCommandValidator.Validate(command);
         if (errors.Count > 0)

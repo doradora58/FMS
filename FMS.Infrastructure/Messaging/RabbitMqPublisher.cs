@@ -21,6 +21,9 @@ public class RabbitMqPublisher(IConnection connection, ILogger<RabbitMqPublisher
         activity?.SetTag("messaging.system", "rabbitmq");
         activity?.SetTag("messaging.destination.name", QueueName);
         activity?.SetTag("messaging.rabbit.destination.routing_key", QueueName);
+        activity?.SetTag("job.id", jobEvent.JobId);
+        activity?.SetTag("order.id", jobEvent.OrderId);
+        activity?.SetTag("job.status", jobEvent.Status);
 
         using var channel = await connection.CreateChannelAsync();
 
@@ -47,6 +50,10 @@ public class RabbitMqPublisher(IConnection connection, ILogger<RabbitMqPublisher
             var context = Activity.Current.Context;
             var traceParent = $"00-{context.TraceId}-{context.SpanId}-{(context.TraceFlags.HasFlag(ActivityTraceFlags.Recorded) ? "01" : "00")}";
             props.Headers["traceparent"] = traceParent;
+            if (!string.IsNullOrWhiteSpace(context.TraceState))
+            {
+                props.Headers["tracestate"] = context.TraceState;
+            }
         }
         
         await channel.BasicPublishAsync(
@@ -61,4 +68,3 @@ public class RabbitMqPublisher(IConnection connection, ILogger<RabbitMqPublisher
     }
 
 }
-
