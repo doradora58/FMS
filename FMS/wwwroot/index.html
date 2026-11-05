@@ -164,8 +164,29 @@
 
         .empty { padding: 24px; color: #64748b; text-align: center; }
         #jobError { color: #b42318; }
+        .vehicle-state {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 9px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .vehicle-state::before {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+            content: "";
+        }
+        .vehicle-state.online { background: #dcfce7; color: #15803d; }
+        .vehicle-state.offline { background: #e2e8f0; color: #475569; }
+        .vehicle-state.unknown { background: #fef3c7; color: #a16207; }
+        .vehicle-card { grid-column: 1 / -1; }
         @media (max-width: 900px) {
             .layout { grid-template-columns: 1fr; }
+            .vehicle-card { grid-column: auto; }
             #map, .map-message, .mock-map { min-height: 360px; height: 360px; }
         }
 
@@ -201,7 +222,6 @@
                 <div class="mock-map-badge">開発用モックマップ</div>
                 <div id="mockVehicleMarkers"></div>
             </div>
-            <p id="vehicleError" class="muted" role="alert" hidden></p>
             <div class="job-detail">
                 <div class="job-detail-heading">
                     <h2 id="selectedJobTitle">ジョブ未選択</h2>
@@ -244,6 +264,31 @@
                         </tr>
                     </thead>
                     <tbody id="jobList"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card vehicle-card" aria-labelledby="vehiclesHeading">
+            <div class="section-heading">
+                <div>
+                    <h2 id="vehiclesHeading">🚜 車両の接続状態</h2>
+                    <p class="muted">VDA 5050の状態を3秒ごとに更新します。</p>
+                </div>
+                <span id="vehicleSummary" class="muted" aria-live="polite">車両情報を読み込んでいます...</span>
+            </div>
+            <p id="vehicleError" class="muted" role="alert" hidden></p>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>車両</th>
+                            <th>接続状態</th>
+                            <th>現在座標</th>
+                            <th>最終受信</th>
+                            <th>位置更新</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vehicleList"></tbody>
                 </table>
             </div>
         </section>
@@ -380,6 +425,48 @@
                     <span class="mock-vehicle-icon" aria-hidden="true">🚜</span>
                     <span class="mock-vehicle-label">${label}</span>
                 </div>`;
+            }).join('');
+        }
+
+        function formatTimestamp(value) {
+            if (!value) return '—';
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('ja-JP');
+        }
+
+        function formatPosition(position) {
+            if (!position ||
+                !Number.isFinite(position.latitude) ||
+                !Number.isFinite(position.longitude)) return '未取得';
+            return `${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)}`;
+        }
+
+        function renderVehicles() {
+            const list = document.getElementById('vehicleList');
+            const onlineCount = vehicles.filter(vehicle => vehicle.connectionState === 'Online').length;
+            document.getElementById('vehicleSummary').textContent =
+                `全${vehicles.length}台 / 接続中${onlineCount}台`;
+
+            if (vehicles.length === 0) {
+                list.innerHTML = '<tr><td class="empty" colspan="5">車両情報はありません</td></tr>';
+                return;
+            }
+
+            list.innerHTML = vehicles.map(vehicle => {
+                const state = ['Online', 'Offline'].includes(vehicle.connectionState)
+                    ? vehicle.connectionState
+                    : 'Unknown';
+                const stateLabel = state === 'Online' ? '接続中' : state === 'Offline' ? '切断' : '未確認';
+                const stateClass = state.toLowerCase();
+                return `
+                    <tr>
+                        <td>${escapeHtml(`${vehicle.manufacturer}/${vehicle.serialNumber}`)}</td>
+                        <td><span class="vehicle-state ${stateClass}">${stateLabel}</span></td>
+                        <td>${escapeHtml(formatPosition(vehicle.position))}</td>
+                        <td>${escapeHtml(formatTimestamp(vehicle.lastSeenAt))}</td>
+                        <td>${escapeHtml(formatTimestamp(vehicle.positionUpdatedAt))}</td>
+                    </tr>
+                `;
             }).join('');
         }
 
@@ -525,6 +612,7 @@
                 if (!response.ok) throw new Error(`Vehicle request failed: ${response.status}`);
                 vehicles = await response.json();
                 errorElement.hidden = true;
+                renderVehicles();
                 updateVehicleMarkers();
             } catch (error) {
                 console.error('Failed to fetch vehicles:', error);
