@@ -14,7 +14,12 @@ public class RabbitMqConnectionFactory(IConfiguration configuration, ILogger<Rab
     public async Task<IConnection> CreateConnectionAsync(CancellationToken cancellationToken = default)
     {
         var hostname = configuration["RabbitMQ:HostName"] ?? "localhost";
-        var factory = new ConnectionFactory { HostName = hostname };
+        var factory = new ConnectionFactory
+        {
+            HostName = hostname,
+            UserName = configuration["RabbitMQ:UserName"] ?? ConnectionFactory.DefaultUser,
+            Password = configuration["RabbitMQ:Password"] ?? ConnectionFactory.DefaultPass
+        };
 
         int maxRetries = 5;
         int delaySeconds = 3;

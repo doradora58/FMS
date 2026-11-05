@@ -11,12 +11,14 @@ EXPOSE 8081
 # This stage is used to build the service project
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
-ARG APP_VERSION=dev
+ARG APP_VERSION=0.0.0-dev
 WORKDIR /src
 
 COPY ["FMS/FMS.csproj", "FMS/"]
 COPY ["FMS.Core/FMS.Core.csproj", "FMS.Core/"]
 COPY ["FMS.Infrastructure/FMS.Infrastructure.csproj", "FMS.Infrastructure/"]
+COPY ["FMS.JobManagement/FMS.JobManagement.csproj", "FMS.JobManagement/"]
+COPY ["FMS.VehicleManagement/FMS.VehicleManagement.csproj", "FMS.VehicleManagement/"]
 
 RUN dotnet restore "FMS/FMS.csproj"
 
@@ -34,7 +36,7 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-ARG APP_VERSION=dev
+ARG APP_VERSION=0.0.0-dev
 ENV APP_VERSION=$APP_VERSION
 
 ENTRYPOINT ["dotnet", "FMS.dll"]
