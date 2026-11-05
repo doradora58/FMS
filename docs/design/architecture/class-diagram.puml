@@ -124,6 +124,7 @@ package "FMS.Core" {
 
 package "FMS.Infrastructure" {
   class InMemoryJobCreationQueue <<BackgroundService>>
+  class Vda5050MqttReceiver <<BackgroundService>>
   class MongoTransportJobRepository
   class JobDocument
   class RabbitMqPublisher
@@ -131,6 +132,22 @@ package "FMS.Infrastructure" {
   class MockTransportJobRepository
   class MockMessagePublisher
   class MockRoutingService
+}
+
+package "FMS.VehicleManagement" {
+  interface IVehicleRegistry {
+    +GetVehicles(): IReadOnlyCollection<VehicleSnapshot>
+    +UpdateState(update): VehicleSnapshot
+    +UpdateConnection(manufacturer, serialNumber, state, receivedAt): VehicleSnapshot
+  }
+  class InMemoryVehicleRegistry
+  class Vda5050StateParser {
+    +ParseState(topic, payload, receivedAt, topicRoot): VehicleStateUpdate
+    +ParseConnection(topic, payload, topicRoot): tuple
+  }
+  class VehicleSnapshot
+  class VehiclePosition
+  class VehicleStateUpdate
 }
 
 TransportJobController --> ITransportJobFacade
@@ -183,6 +200,13 @@ MockMessagePublisher ..|> IMessagePublisher
 MockRoutingService ..|> IRoutingService
 InMemoryJobCreationQueue ..|> ICommandQueue
 InMemoryJobCreationQueue --> ICommandExecutor : execute queued command
+
+Vda5050MqttReceiver --> IVehicleRegistry : update received state
+Vda5050MqttReceiver ..> Vda5050StateParser : parse state / visualization / connection
+InMemoryVehicleRegistry ..|> IVehicleRegistry
+InMemoryVehicleRegistry o-- VehicleSnapshot
+VehicleSnapshot o-- VehiclePosition
+Vda5050StateParser ..> VehicleStateUpdate
 
 note bottom of InMemoryJobCreationQueue
   Process-local, non-durable queue.

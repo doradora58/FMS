@@ -5,15 +5,13 @@ using FMS.Infrastructure.External;
 using FMS.Infrastructure.Factories;
 using FMS.Infrastructure.Messaging;
 using FMS.Infrastructure.Mocks;
+using FMS.Infrastructure.VehicleMessaging;
 using FMS.JobManagement.Commands;
+using FMS.VehicleManagement.Models;
+using FMS.VehicleManagement.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FMS.Infrastructure.Extensions;
 
@@ -21,6 +19,9 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
+        services.AddSingleton<IVehicleRegistry, InMemoryVehicleRegistry>();
+        services.AddHostedService<Vda5050MqttReceiver>();
+
         // RabbitMQ
         services.AddSingleton<IRabbitMqConnectionFactory, RabbitMqConnectionFactory>();
         services.AddSingleton<IConnection>(sp =>
@@ -44,6 +45,15 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddInfrastructureMockServices(this IServiceCollection services)
     {
+        var vehicleRegistry = new InMemoryVehicleRegistry();
+        vehicleRegistry.UpdateConnection("Mock", "AGV-001", "Online", DateTimeOffset.UtcNow);
+        vehicleRegistry.UpdateState(new VehicleStateUpdate(
+            "Mock",
+            "AGV-001",
+            new VehiclePosition(35.681236, 139.767125),
+            DateTimeOffset.UtcNow));
+        services.AddSingleton<IVehicleRegistry>(vehicleRegistry);
+
         // RabbitMQ
         services.AddSingleton<IMessagePublisher, MockMessagePublisher>();
         AddInMemoryJobCreationQueue(services);

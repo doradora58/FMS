@@ -36,6 +36,25 @@ Production dependency injection uses MongoDB, Google Routes, and RabbitMQ for
 status-event publishing. Development dependency injection uses in-memory/mock
 repository, routing, and publisher implementations.
 
+Vehicle integration is isolated in the `FMS.VehicleManagement` class library,
+which owns vehicle snapshots, the in-memory registry, and VDA 5050 message
+parsing. Production starts an MQTT background receiver that subscribes to
+`uagv/v2/+/+/state`, `uagv/v2/+/+/visualization`, and
+`uagv/v2/+/+/connection`. The vehicle list is exposed at `GET /api/vehicles`
+and the dashboard refreshes its Google Maps markers every three seconds.
+Development uses a sample vehicle marker and does not require an MQTT broker.
+
+VDA 5050 2.0.0 position coordinates are normally map-local `x`/`y`; they are
+not Google Maps coordinates. This initial integration expects the vehicle
+manufacturer's GPS extension as numeric `agvPosition.latitude` and
+`agvPosition.longitude` fields. State messages without those extension fields
+still update the vehicle's last-seen time, but do not replace its last known
+GPS position. Configure the RabbitMQ MQTT plugin/listener before production
+use; the existing AMQP connection used for job events is separate. Broker
+settings are `Vda5050:Broker:Host`, `Port`, `Username`, `Password`, `UseTls`,
+and `ClientId`, with `Vda5050:TopicRoot` defaulting to `uagv/v2`. Credentials
+should be supplied through deployment secrets/environment variables.
+
 The dashboard uses the Google Maps JavaScript API to draw the route returned by
 Google Routes. Route polyline and endpoint coordinates are stored with each
 job. Configure a separate, HTTP-referrer-restricted

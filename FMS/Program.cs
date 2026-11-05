@@ -11,6 +11,7 @@ using FMS.JobManagement.Commands;
 using FMS.JobManagement.Handlers;
 using FMS.JobManagement.Services;
 using FMS.JobManagement.Telemetry;
+using FMS.VehicleManagement.Services;
 using MongoDB.Driver;
 using MongoDB.Driver.Core.Extensions.DiagnosticSources;
 using OpenTelemetry.Metrics;
@@ -98,6 +99,9 @@ app.MapGet("/api/maps/config", (IConfiguration configuration) =>
         ? Results.Ok(new { configured = false })
         : Results.Ok(new { configured = true, apiKey });
 });
+
+app.MapGet("/api/vehicles", (IVehicleRegistry vehicleRegistry) =>
+    Results.Ok(vehicleRegistry.GetVehicles()));
 
 app.UseRouting();
 app.MapControllers();

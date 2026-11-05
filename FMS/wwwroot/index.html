@@ -114,7 +114,7 @@
     <header class="header">
         <div>
             <h1>🚜 FMS Fleet &amp; Job Monitor</h1>
-            <p class="subtitle">ジョブの状態と地図上の配送ルートを確認できます。</p>
+            <p class="subtitle">ジョブの配送ルートとVDA 5050車両の位置を確認できます。</p>
         </div>
         <span id="appVersion" class="version">Version: Loading...</span>
     </header>
@@ -129,6 +129,7 @@
             </div>
             <div id="mapMessage" class="map-message" role="status">地図を読み込んでいます...</div>
             <div id="map" aria-label="選択したジョブの地図と配送ルート" hidden></div>
+            <p id="vehicleError" class="muted" role="alert" hidden></p>
             <div class="job-detail">
                 <div class="job-detail-heading">
                     <h2 id="selectedJobTitle">ジョブ未選択</h2>
@@ -183,6 +184,9 @@
         let map = null;
         let routeLine = null;
         let routeMarkers = [];
+        let vehicleMarkers = new Map();
+        let vehicles = [];
+        let hasCenteredOnVehicles = false;
 
         function escapeHtml(value) {
             return String(value ?? '').replace(/[&<>"']/g, character => ({
@@ -241,7 +245,8 @@
             clearRoute();
 
             if (!job.routePolyline) {
-                setMapMessage('このジョブには表示可能な経路データがありません。ルート検索の完了後に再度選択してください。');
+                if (vehicles.some(vehicle => vehicle.position)) showMap();
+                else setMapMessage('このジョブには表示可能な経路データがありません。ルート検索の完了後に再度選択してください。');
                 return;
             }
 
@@ -250,6 +255,59 @@
                 if (path.length === 0) {
                     setMapMessage('経路データを地図上に表示できません。');
                     return;
+                }
+
+                function updateVehicleMarkers() {
+                    if (!map || !window.google?.maps) return;
+
+                    const positionedVehicles = vehicles.filter(vehicle =>
+                        vehicle.position &&
+                        Number.isFinite(vehicle.position.latitude) &&
+                        Number.isFinite(vehicle.position.longitude));
+                    const activeIds = new Set(positionedVehicles.map(vehicle =>
+                        `${vehicle.manufacturer}/${vehicle.serialNumber}`));
+
+                    for (const [id, marker] of vehicleMarkers) {
+                        if (!activeIds.has(id)) {
+                            marker.setMap(null);
+                            vehicleMarkers.delete(id);
+                        }
+                    }
+
+                    const bounds = new google.maps.LatLngBounds();
+                    positionedVehicles.forEach(vehicle => {
+                        const id = `${vehicle.manufacturer}/${vehicle.serialNumber}`;
+                        const position = {
+                            lat: vehicle.position.latitude,
+                            lng: vehicle.position.longitude
+                        };
+                        const online = vehicle.connectionState === 'Online';
+                        let marker = vehicleMarkers.get(id);
+                        if (!marker) {
+                            marker = new google.maps.Marker({ map, position });
+                            vehicleMarkers.set(id, marker);
+                        }
+                        marker.setPosition(position);
+                        marker.setTitle(`${id} (${vehicle.connectionState})`);
+                        marker.setIcon({
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 9,
+                            fillColor: online ? '#16a34a' : '#64748b',
+                            fillOpacity: 1,
+                            strokeColor: '#ffffff',
+                            strokeWeight: 2
+                        });
+                        marker.setLabel({ text: 'V', color: '#ffffff', fontWeight: '700' });
+                        bounds.extend(position);
+                    });
+
+                    if (positionedVehicles.length > 0) {
+                        showMap();
+                        if (!hasCenteredOnVehicles) {
+                            map.fitBounds(bounds, 48);
+                            hasCenteredOnVehicles = true;
+                        }
+                    }
                 }
 
                 showMap();
@@ -353,6 +411,21 @@
             }
         }
 
+        async function fetchVehicles() {
+            const errorElement = document.getElementById('vehicleError');
+            try {
+                const response = await fetch('/api/vehicles');
+                if (!response.ok) throw new Error(`Vehicle request failed: ${response.status}`);
+                vehicles = await response.json();
+                errorElement.hidden = true;
+                updateVehicleMarkers();
+            } catch (error) {
+                console.error('Failed to fetch vehicles:', error);
+                errorElement.textContent = '車両状態を取得できませんでした。';
+                errorElement.hidden = false;
+            }
+        }
+
         async function configureMap() {
             try {
                 const response = await fetch('/api/maps/config');
@@ -390,6 +463,7 @@
                     selectJob(selectedJob);
                 }
             }
+            updateVehicleMarkers();
         };
 
         window.gm_authFailure = () => {
@@ -405,8 +479,10 @@
 
         fetchVersion();
         fetchJobs();
+        fetchVehicles();
         configureMap();
         setInterval(fetchJobs, 3000);
+        setInterval(fetchVehicles, 3000);
     </script>
 </body>
 </html>
